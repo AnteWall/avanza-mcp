@@ -56,11 +56,13 @@ For Claude Desktop or other MCP clients, add to your configuration:
   "mcpServers": {
     "avanza": {
       "command": "uvx",
-      "args": ["avanza-mcp"]
+      "args": ["--prerelease=allow", "avanza-mcp"]
     }
   }
 }
 ```
+
+> **Note:** The `--prerelease=allow` flag is required because this package depends on fastmcp 3.0 (currently in beta). This will no longer be needed once fastmcp 3.0 stable is released.
 
 ### Usage in Claude Desktop
 
