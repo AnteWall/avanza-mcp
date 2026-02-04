@@ -6,10 +6,19 @@ from decimal import Decimal
 from pydantic import BaseModel, ConfigDict, Field
 
 
+# Standard model config for all models
+MODEL_CONFIG = ConfigDict(
+    populate_by_name=True,
+    str_strip_whitespace=True,
+    validate_assignment=True,
+    extra="allow",  # Don't fail on extra fields from API
+)
+
+
 class FundPerformance(BaseModel):
     """Fund performance metrics over various time periods."""
 
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = MODEL_CONFIG
 
     today: Decimal | None = Field(None, description="Performance today (%)")
     one_week: Decimal | None = Field(None, alias="oneWeek", description="1 week return (%)")
@@ -37,7 +46,7 @@ class FundPerformance(BaseModel):
 class FundFee(BaseModel):
     """Fund fee information."""
 
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = MODEL_CONFIG
 
     ongoing_charges: Decimal | None = Field(
         None, alias="ongoingCharges", description="Ongoing charges (%)"
@@ -48,10 +57,19 @@ class FundFee(BaseModel):
     exit_charge: Decimal | None = Field(None, alias="exitCharge", description="Exit fee (%)")
 
 
+class ChartDataPoint(BaseModel):
+    """Data point for portfolio allocation charts."""
+
+    model_config = MODEL_CONFIG
+
+    name: str | None = None
+    y: float | None = None
+
+
 class FundInfo(BaseModel):
     """Detailed fund information."""
 
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = MODEL_CONFIG
 
     # Basic info
     id: str | None = Field(None, description="Fund ID")
@@ -106,17 +124,39 @@ class FundInfo(BaseModel):
     sell_fee: Decimal | None = Field(None, alias="sellFee", description="Sell fee (%)")
     prospectus: str | None = Field(None, description="Prospectus URL")
 
+    # Portfolio allocations
+    country_chart_data: list[ChartDataPoint] = Field(
+        default_factory=list,
+        alias="countryChartData",
+        description="Geographic allocation by country",
+    )
+    sector_chart_data: list[ChartDataPoint] = Field(
+        default_factory=list,
+        alias="sectorChartData",
+        description="Sector allocation",
+    )
+    holding_chart_data: list[ChartDataPoint] = Field(
+        default_factory=list,
+        alias="holdingChartData",
+        description="Top holdings",
+    )
+    portfolio_date: date | None = Field(
+        None, alias="portfolioDate", description="Date of portfolio data"
+    )
+
     # Timestamps
     last_updated: datetime | None = Field(
         None, alias="lastUpdated", description="Last update time"
     )
 
 
-# === New models for additional fund endpoints ===
+# === Models for additional fund endpoints ===
 
 
 class ProductInvolvement(BaseModel):
     """Product involvement information for sustainability metrics."""
+
+    model_config = MODEL_CONFIG
 
     product: str
     productDescription: str
@@ -127,6 +167,8 @@ class ProductInvolvement(BaseModel):
 class SustainabilityGoal(BaseModel):
     """UN Sustainable Development Goal information."""
 
+    model_config = MODEL_CONFIG
+
     goalId: int | None = None
     goalName: str | None = None
     goalDescription: str | None = None
@@ -134,6 +176,8 @@ class SustainabilityGoal(BaseModel):
 
 class FundSustainability(BaseModel):
     """Fund sustainability and ESG metrics."""
+
+    model_config = MODEL_CONFIG
 
     lowCarbon: bool | None = None
     esgScore: float | None = None
@@ -164,12 +208,16 @@ class FundSustainability(BaseModel):
 class FundChartDataPoint(BaseModel):
     """Single data point in fund chart."""
 
+    model_config = MODEL_CONFIG
+
     x: int  # timestamp
     y: float  # value (typically percentage)
 
 
 class FundChart(BaseModel):
     """Fund chart data with historical performance."""
+
+    model_config = MODEL_CONFIG
 
     id: str
     dataSerie: list[FundChartDataPoint]
@@ -181,6 +229,8 @@ class FundChart(BaseModel):
 class FundChartPeriod(BaseModel):
     """Fund performance for a specific time period."""
 
+    model_config = MODEL_CONFIG
+
     timePeriod: str
     change: float
     startDate: str
@@ -188,6 +238,8 @@ class FundChartPeriod(BaseModel):
 
 class FundDescription(BaseModel):
     """Fund description and category information."""
+
+    model_config = MODEL_CONFIG
 
     response: str
     heading: str

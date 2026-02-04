@@ -1,10 +1,21 @@
 """Search result models matching Avanza API response structure."""
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
+
+
+# Standard model config for all models
+MODEL_CONFIG = ConfigDict(
+    populate_by_name=True,
+    str_strip_whitespace=True,
+    validate_assignment=True,
+    extra="allow",  # Don't fail on extra fields from API
+)
 
 
 class SearchPrice(BaseModel):
     """Price information for a search result."""
+
+    model_config = MODEL_CONFIG
 
     last: str | None = None
     currency: str | None = None
@@ -19,6 +30,8 @@ class SearchPrice(BaseModel):
 class StockSector(BaseModel):
     """Stock sector classification."""
 
+    model_config = MODEL_CONFIG
+
     id: int
     level: int
     name: str
@@ -29,6 +42,8 @@ class StockSector(BaseModel):
 class FundTag(BaseModel):
     """Fund classification tag."""
 
+    model_config = MODEL_CONFIG
+
     title: str
     category: str
     tagCategory: str
@@ -37,6 +52,8 @@ class FundTag(BaseModel):
 
 class SearchHit(BaseModel):
     """Individual search result from the Avanza API."""
+
+    model_config = MODEL_CONFIG
 
     type: str
     title: str
@@ -61,6 +78,8 @@ class SearchHit(BaseModel):
 class TypeFacet(BaseModel):
     """Facet count for an instrument type."""
 
+    model_config = MODEL_CONFIG
+
     type: str
     count: int
 
@@ -68,11 +87,15 @@ class TypeFacet(BaseModel):
 class SearchFacets(BaseModel):
     """Search result facets with type counts."""
 
+    model_config = MODEL_CONFIG
+
     types: list[TypeFacet]
 
 
 class SearchFilter(BaseModel):
     """Applied search filters."""
+
+    model_config = MODEL_CONFIG
 
     types: list[str] = Field(default_factory=list)
 
@@ -80,7 +103,7 @@ class SearchFilter(BaseModel):
 class SearchPagination(BaseModel):
     """Pagination information."""
 
-    model_config = {"populate_by_name": True}
+    model_config = MODEL_CONFIG
 
     size: int
     # Using field alias since 'from' is a Python keyword
@@ -90,7 +113,7 @@ class SearchPagination(BaseModel):
 class SearchResponse(BaseModel):
     """Complete search API response from Avanza."""
 
-    model_config = {"populate_by_name": True}
+    model_config = MODEL_CONFIG
 
     totalNumberOfHits: int
     hits: list[SearchHit]

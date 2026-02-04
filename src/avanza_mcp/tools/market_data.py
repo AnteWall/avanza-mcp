@@ -414,3 +414,95 @@ async def get_broker_trade_summary(
     except Exception as e:
         ctx.error(f"Failed to fetch broker trade summary: {str(e)}")
         raise
+
+
+@mcp.tool()
+async def get_dividends(
+    ctx: Context,
+    instrument_id: str,
+) -> dict:
+    """Get historical dividend data for a stock.
+
+    Returns dividend history by year including amounts, dates, and yields.
+    Useful for income investors and dividend analysis.
+
+    Args:
+        ctx: MCP context for logging
+        instrument_id: Avanza instrument ID from search results
+
+    Returns:
+        Dividend data with:
+        - dividendsByYear: Array of yearly dividend data including:
+            - year: Year of dividend
+            - dividend: Dividend amount per share
+            - exDate: Ex-dividend date
+            - paymentDate: Payment date
+            - yield: Dividend yield percentage
+            - currency: Dividend currency
+
+    Examples:
+        Get dividend history for a stock:
+        >>> get_dividends(instrument_id="5479")
+    """
+    ctx.info(f"Fetching dividend data for ID: {instrument_id}")
+
+    try:
+        async with AvanzaClient() as client:
+            service = MarketDataService(client)
+            dividends = await service.get_dividends(instrument_id)
+
+        years = len(dividends.get("dividendsByYear", []))
+        ctx.info(f"Retrieved {years} years of dividend data")
+        return dividends
+
+    except Exception as e:
+        ctx.error(f"Failed to fetch dividend data: {str(e)}")
+        raise
+
+
+@mcp.tool()
+async def get_company_financials(
+    ctx: Context,
+    instrument_id: str,
+) -> dict:
+    """Get company financial statements and metrics.
+
+    Returns comprehensive financial data including revenue, profits, margins,
+    and other key metrics by year and quarter.
+
+    Args:
+        ctx: MCP context for logging
+        instrument_id: Avanza instrument ID from search results
+
+    Returns:
+        Financial data with:
+        - companyFinancialsByYear: Annual financial data
+        - companyFinancialsByQuarter: Quarterly financial data
+        - companyFinancialsByQuarterTTM: Trailing twelve months data
+        Each containing metrics like:
+            - revenue: Total revenue
+            - operatingProfit: Operating profit
+            - netProfit: Net profit
+            - grossMargin: Gross profit margin
+            - operatingMargin: Operating margin
+            - netMargin: Net profit margin
+
+    Examples:
+        Get financials for a company:
+        >>> get_company_financials(instrument_id="5479")
+    """
+    ctx.info(f"Fetching company financials for ID: {instrument_id}")
+
+    try:
+        async with AvanzaClient() as client:
+            service = MarketDataService(client)
+            financials = await service.get_company_financials(instrument_id)
+
+        years = len(financials.get("companyFinancialsByYear", []))
+        quarters = len(financials.get("companyFinancialsByQuarter", []))
+        ctx.info(f"Retrieved financials: {years} years, {quarters} quarters")
+        return financials
+
+    except Exception as e:
+        ctx.error(f"Failed to fetch company financials: {str(e)}")
+        raise

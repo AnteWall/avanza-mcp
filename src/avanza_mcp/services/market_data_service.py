@@ -166,6 +166,51 @@ class MarketDataService:
         endpoint = PublicEndpoint.STOCK_ANALYSIS.format(id=instrument_id)
         return await self._client.get(endpoint)
 
+    async def get_dividends(self, instrument_id: str) -> dict[str, Any]:
+        """Fetch dividend history from stock analysis data.
+
+        Args:
+            instrument_id: Avanza instrument ID
+
+        Returns:
+            Dividend data by year including:
+            - dividend: Dividend amount per share
+            - exDate: Ex-dividend date
+            - paymentDate: Payment date
+            - yield: Dividend yield percentage
+
+        Raises:
+            AvanzaError: If request fails
+        """
+        endpoint = PublicEndpoint.STOCK_ANALYSIS.format(id=instrument_id)
+        analysis = await self._client.get(endpoint)
+        return {
+            "dividendsByYear": analysis.get("dividendsByYear", []),
+        }
+
+    async def get_company_financials(self, instrument_id: str) -> dict[str, Any]:
+        """Fetch company financial data from stock analysis.
+
+        Args:
+            instrument_id: Avanza instrument ID
+
+        Returns:
+            Company financials by year and quarter including revenue,
+            profit margins, earnings, and other financial metrics
+
+        Raises:
+            AvanzaError: If request fails
+        """
+        endpoint = PublicEndpoint.STOCK_ANALYSIS.format(id=instrument_id)
+        analysis = await self._client.get(endpoint)
+        return {
+            "companyFinancialsByYear": analysis.get("companyFinancialsByYear", []),
+            "companyFinancialsByQuarter": analysis.get("companyFinancialsByQuarter", []),
+            "companyFinancialsByQuarterTTM": analysis.get(
+                "companyFinancialsByQuarterTTM", []
+            ),
+        }
+
     async def get_stock_quote(self, instrument_id: str) -> Quote:
         """Fetch real-time stock quote with current pricing.
 

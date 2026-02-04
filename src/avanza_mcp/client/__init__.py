@@ -6,8 +6,10 @@ from .exceptions import (
     AvanzaAPIError,
     AvanzaAuthError,
     AvanzaError,
+    AvanzaNetworkError,
     AvanzaNotFoundError,
     AvanzaRateLimitError,
+    AvanzaTimeoutError,
 )
 
 __all__ = [
@@ -16,6 +18,8 @@ __all__ = [
     "AvanzaError",
     "AvanzaAPIError",
     "AvanzaAuthError",
+    "AvanzaNetworkError",
     "AvanzaNotFoundError",
     "AvanzaRateLimitError",
+    "AvanzaTimeoutError",
 ]

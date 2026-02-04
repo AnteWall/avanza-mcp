@@ -199,3 +199,69 @@ async def get_fund_description(
     except Exception as e:
         ctx.error(f"Failed to fetch fund description: {str(e)}")
         raise
+
+
+@mcp.tool()
+async def get_fund_holdings(
+    ctx: Context,
+    instrument_id: str,
+) -> dict:
+    """Get fund portfolio holdings and allocation breakdown.
+
+    Returns the fund's portfolio composition including geographic allocation,
+    sector allocation, and top holdings. Useful for understanding what the
+    fund invests in.
+
+    Args:
+        ctx: MCP context for logging
+        instrument_id: Avanza fund ID from search results
+
+    Returns:
+        Portfolio allocation data with:
+        - countryChartData: Geographic allocation by country (name, y=percentage)
+        - sectorChartData: Sector allocation (name, y=percentage)
+        - holdingChartData: Top holdings (name, y=percentage)
+        - portfolioDate: Date of portfolio data
+
+    Examples:
+        Get holdings for a fund:
+        >>> get_fund_holdings(instrument_id="878733")
+    """
+    ctx.info(f"Fetching fund holdings for ID: {instrument_id}")
+
+    try:
+        async with AvanzaClient() as client:
+            service = MarketDataService(client)
+            fund_info = await service.get_fund_info(instrument_id)
+
+        holdings = {
+            "countryChartData": [
+                c.model_dump(by_alias=True, exclude_none=True)
+                for c in fund_info.country_chart_data
+            ],
+            "sectorChartData": [
+                s.model_dump(by_alias=True, exclude_none=True)
+                for s in fund_info.sector_chart_data
+            ],
+            "holdingChartData": [
+                h.model_dump(by_alias=True, exclude_none=True)
+                for h in fund_info.holding_chart_data
+            ],
+            "portfolioDate": (
+                fund_info.portfolio_date.isoformat()
+                if fund_info.portfolio_date
+                else None
+            ),
+        }
+
+        countries = len(holdings["countryChartData"])
+        sectors = len(holdings["sectorChartData"])
+        top_holdings = len(holdings["holdingChartData"])
+        ctx.info(
+            f"Retrieved holdings: {countries} countries, {sectors} sectors, {top_holdings} top holdings"
+        )
+        return holdings
+
+    except Exception as e:
+        ctx.error(f"Failed to fetch fund holdings: {str(e)}")
+        raise
