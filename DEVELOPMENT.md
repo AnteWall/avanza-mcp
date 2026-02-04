@@ -74,7 +74,7 @@ In Claude Desktop, ask:
 Can you list the available MCP tools?
 ```
 
-You should see all 15 Avanza tools listed.
+You should see all Avanza tools listed.
 
 #### Step 4: Test Tools
 
@@ -95,4 +95,31 @@ What's the ESG score for Avanza Zero fund (ID: 41567)?
 
 # Get order book
 Show me the order book depth for H&M (ID: 5364)
+
+# Get dividends (new)
+What dividends has SEB paid over the years?
+
+# Get fund holdings (new)
+Show me the portfolio allocation for Avanza Global fund
 ```
+
+## 🧪 Running Tests
+
+```bash
+# Install dev dependencies
+uv sync --all-extras
+
+# Run all tests
+uv run pytest tests/
+
+# Run unit tests only (fast, no API calls)
+uv run pytest tests/unit -v
+
+# Run integration tests (hits real API, use sparingly)
+uv run pytest tests/integration -v --tb=short
+```
+
+### Test Coverage
+
+- **Unit tests** (`tests/unit/`): Test client, models, and error handling with mocked responses
+- **Integration tests** (`tests/integration/`): Test all 18 tools against the real Avanza API
