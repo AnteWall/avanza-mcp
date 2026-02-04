@@ -10,7 +10,7 @@ Provides access to:
 - Real-time market status and trading hours
 """
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 
 from fastmcp import FastMCP
 
