@@ -48,3 +48,18 @@ class Resolution(str, Enum):
     DAY = "DAY"
     WEEK = "WEEK"
     MONTH = "MONTH"
+
+
+class Direction(str, Enum):
+    """Direction for leveraged instruments."""
+
+    LONG = "long"
+    SHORT = "short"
+
+
+class SubType(str, Enum):
+    """Sub-types for warrants and certificates."""
+
+    TURBO = "TURBO"
+    MINI = "MINI"
+    KNOCK_OUT = "KNOCK_OUT"

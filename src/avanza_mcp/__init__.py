@@ -6,7 +6,9 @@ No authentication required - all endpoints are publicly accessible.
 Provides access to:
 - Stock information, quotes, and charts
 - Fund information, sustainability metrics, and performance
+- Certificates, Warrants, ETFs, Futures/Forwards data
 - Market data including order depth, trades, and broker activity
+- Additional data (number of owners, short selling info)
 - Real-time market status and trading hours
 """
 

@@ -40,6 +40,42 @@ The author of this software is not responsible for any indirect damages (foresee
 | `get_fund_description` | Detailed fund description |
 | `get_fund_holdings` | Portfolio allocation (country, sector, top holdings) |
 
+### Certificates
+| Tool | Description |
+|------|-------------|
+| `filter_certificates` | Search and filter certificates with pagination |
+| `get_certificate_info` | Get detailed certificate information |
+| `get_certificate_details` | Get extended certificate details |
+
+### Warrants
+| Tool | Description |
+|------|-------------|
+| `filter_warrants` | Search and filter warrants (turbos, minis) |
+| `get_warrant_info` | Get detailed warrant information |
+| `get_warrant_details` | Get extended warrant details |
+
+### ETFs
+| Tool | Description |
+|------|-------------|
+| `filter_etfs` | Search and filter exchange-traded funds |
+| `get_etf_info` | Get detailed ETF information |
+| `get_etf_details` | Get extended ETF details |
+
+### Futures/Forwards
+| Tool | Description |
+|------|-------------|
+| `list_futures_forwards` | List available futures and forwards |
+| `get_future_forward_filter_options` | Get available filter options |
+| `get_future_forward_info` | Get contract information |
+| `get_future_forward_details` | Get extended contract details |
+
+### Additional Data
+| Tool | Description |
+|------|-------------|
+| `get_number_of_owners` | Get owner count for any instrument |
+| `get_short_selling` | Get short selling data for instruments |
+| `get_marketmaker_chart` | Get OHLC price chart data for traded products (certificates, warrants, ETFs) |
+
 ## 💡 MCP Prompts
 
 - `analyze_stock` - Comprehensive stock analysis workflow
