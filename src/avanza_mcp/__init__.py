@@ -12,7 +12,7 @@ Provides access to:
 - Real-time market status and trading hours
 """
 
-__version__ = "1.2.0"
+__version__ = "1.3.0"
 
 from fastmcp import FastMCP
 
