@@ -63,7 +63,7 @@ release version_part="patch":
     git add src/avanza_mcp/__init__.py
     git commit -m "Bump version to $new_version"
     git tag "v$new_version"
-    git push origin master
+    git push origin main
     git push origin "v$new_version"
 
     echo ""
