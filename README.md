@@ -78,9 +78,28 @@ The author of this software is not responsible for any indirect damages (foresee
 
 ## 💡 MCP Prompts
 
+### Analysis Prompts
 - `analyze_stock` - Comprehensive stock analysis workflow
 - `compare_funds` - Multi-fund comparison template
 - `screen_dividend_stocks` - Dividend stock screening
+
+### Workflow Prompts (Teach AI Efficient Data Fetching)
+- `search_and_analyze_instrument` - Guide for finding and analyzing instruments efficiently
+- `filter_instruments_efficiently` - Guide for filtering large datasets with pagination
+- `compare_multiple_instruments` - Guide for comparing instruments efficiently
+- `explore_market_segment` - Guide for exploring market segments
+- `get_historical_analysis` - Guide for analyzing historical data
+- `screen_by_criteria` - Guide for screening by custom criteria
+
+## 📚 MCP Resources
+
+### Documentation Resources
+- `avanza://docs/usage` - Comprehensive usage guide for AI assistants
+- `avanza://docs/quick-start` - Quick reference for common tasks
+
+### Instrument Resources
+- `avanza://stock/{instrument_id}` - Get stock information as markdown
+- `avanza://fund/{instrument_id}` - Get fund information as markdown
 
 
 ### Configuration for MCP Clients
