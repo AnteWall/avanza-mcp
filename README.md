@@ -13,8 +13,10 @@ A Model Context Protocol (MCP) server providing access to Avanza's public API. G
 - Screening and comparison prompts
 
 ## Installation for MCP Clients
+<details>
+<summary>Claude Desktop</summary>
 
-For Claude Desktop or other MCP clients, add to your configuration:
+Add the following to your Claude Desktop MCP configuration file:
 
 ```json
 {
@@ -26,6 +28,56 @@ For Claude Desktop or other MCP clients, add to your configuration:
   }
 }
 ```
+Restart Claude Desktop after saving the configuration.
+</details>
+
+
+<details>
+<summary>Cursor</summary>
+
+Cursor supports MCP servers via its settings.
+
+1. Open **Cursor Settings**
+2. Navigate to **AI → MCP Servers**
+3. Add a new MCP server with the following configuration:
+
+```json
+{
+  "name": "avanza",
+  "command": "uvx",
+  "args": ["--prerelease=allow", "avanza-mcp"]
+}
+```
+
+Once added, Cursor can query Avanza market data directly in chat and inline prompts.
+</details>
+
+<details>
+<summary>Visual Studio Code</summary>
+
+VS Code can use Avanza MCP Server through MCP-compatible extensions or custom AI tooling.
+
+1. Ensure you have **Python 3.10+** installed
+2. Ensure `uv` is installed: https://docs.astral.sh/uv/
+3. Add the following MCP server configuration to your MCP-enabled extension or tool:
+
+```json
+{
+  "mcpServers": {
+    "avanza": {
+      "command": "uvx",
+      "args": ["--prerelease=allow", "avanza-mcp"]
+    }
+  }
+}
+```
+
+Reload the VS Code window after updating the configuration.
+</details>
+
+
+> **Note:** MCP support depends on the specific extension you are using. Refer to your extension’s documentation for MCP setup details.
+
   
 ## ⚠️ Disclaimer
 
