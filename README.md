@@ -1,7 +1,32 @@
 # Avanza MCP Server
+![PyPI - Version](https://img.shields.io/pypi/v/avanza-mcp)
+[![CI](https://github.com/AnteWall/avanza-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/AnteWall/avanza-mcp/actions/workflows/ci.yml)
 
 A Model Context Protocol (MCP) server providing access to Avanza's public API. Get real-time Swedish stock quotes, fund information, charts, and comprehensive market data.
 
+## 🚀 Features
+
+- Fetch instrument info (stocks, ETFs, funds)  
+- Real-time price quotes & order book depth  
+- Historical price charts & financial ratios  
+- Fund performance & ESG metrics  
+- Screening and comparison prompts
+
+## Installation for MCP Clients
+
+For Claude Desktop or other MCP clients, add to your configuration:
+
+```json
+{
+  "mcpServers": {
+    "avanza": {
+      "command": "uvx",
+      "args": ["--prerelease=allow", "avanza-mcp"]
+    }
+  }
+}
+```
+  
 ## ⚠️ Disclaimer
 
 This is an unofficial API client/MCP Server. Not affiliated with Avanza Bank AB. The underlying API can be taken down or changed without warning at any point in time.
@@ -102,20 +127,7 @@ The author of this software is not responsible for any indirect damages (foresee
 - `avanza://fund/{instrument_id}` - Get fund information as markdown
 
 
-### Configuration for MCP Clients
 
-For Claude Desktop or other MCP clients, add to your configuration:
-
-```json
-{
-  "mcpServers": {
-    "avanza": {
-      "command": "uvx",
-      "args": ["--prerelease=allow", "avanza-mcp"]
-    }
-  }
-}
-```
 
 > **Note:** The `--prerelease=allow` flag is required because this package depends on fastmcp 3.0 (currently in beta). This will no longer be needed once fastmcp 3.0 stable is released.
 
