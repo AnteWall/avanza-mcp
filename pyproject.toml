@@ -5,7 +5,7 @@ description = "MCP server for Avanza public market data API - Swedish stocks, fu
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "fastmcp==3.0.0b1",
+    "fastmcp==3.4.7",
     "httpx>=0.28.1,<1.0",
     "httpx-sse>=0.4.3",
     "pydantic>=2.0.0",

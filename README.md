@@ -23,7 +23,7 @@ Add the following to your Claude Desktop MCP configuration file:
   "mcpServers": {
     "avanza": {
       "command": "uvx",
-      "args": ["--prerelease=allow", "avanza-mcp"]
+      "args": ["avanza-mcp"]
     }
   }
 }
@@ -45,7 +45,7 @@ Cursor supports MCP servers via its settings.
 {
   "name": "avanza",
   "command": "uvx",
-  "args": ["--prerelease=allow", "avanza-mcp"]
+  "args": ["avanza-mcp"]
 }
 ```
 
@@ -66,7 +66,7 @@ VS Code can use Avanza MCP Server through MCP-compatible extensions or custom AI
   "mcpServers": {
     "avanza": {
       "command": "uvx",
-      "args": ["--prerelease=allow", "avanza-mcp"]
+      "args": ["avanza-mcp"]
     }
   }
 }
@@ -181,7 +181,7 @@ The author of this software is not responsible for any indirect damages (foresee
 
 
 
-> **Note:** The `--prerelease=allow` flag is required because this package depends on fastmcp 3.0 (currently in beta). This will no longer be needed once fastmcp 3.0 stable is released.
+> **Note:** FastMCP 3 is stable, so the `--prerelease=allow` flag is no longer required.
 
 ### Usage in Claude Desktop
 
