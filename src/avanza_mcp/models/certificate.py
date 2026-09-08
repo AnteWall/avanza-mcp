@@ -1,9 +1,9 @@
 """Certificate-related Pydantic models."""
 
 from pydantic import Field
-from .common import MODEL_CONFIG as MODEL_CONFIG, AvanzaModel
+from .common import MODEL_CONFIG as MODEL_CONFIG, AvanzaModel, OrderBookId
 from .stock import Quote, Listing, HistoricalClosingPrices, KeyIndicators
-from .filter import UnderlyingInstrument, SortBy, FilterResponse
+from .filter import UnderlyingInstrument, SortBy, FilterResponse, PaginationRequest
 
 
 class CertificateListItem(AvanzaModel):
@@ -53,18 +53,16 @@ class CertificateFilter(AvanzaModel):
 
     directions: list[str] = Field(default_factory=list)
     leverages: list[float] = Field(default_factory=list)
-    underlyingInstruments: list[str] = Field(default_factory=list)
+    underlyingInstruments: list[OrderBookId] = Field(default_factory=list)
     categories: list[str] = Field(default_factory=list)
     exposures: list[str] = Field(default_factory=list)
     issuers: list[str] = Field(default_factory=list)
 
 
-class CertificateFilterRequest(AvanzaModel):
+class CertificateFilterRequest(PaginationRequest):
     """Complete filter request for certificates."""
 
     filter: CertificateFilter
-    offset: int = 0
-    limit: int = 20
     sortBy: SortBy
 
 

@@ -5,14 +5,16 @@ Run with: pytest tests/integration/test_certificates_integration.py -v -m integr
 """
 
 import pytest
+from avanza_mcp.client.exceptions import AvanzaNotFoundError
 from avanza_mcp.models.certificate import (
     CertificateFilter,
     CertificateFilterRequest,
 )
 from avanza_mcp.models.filter import SortBy
 
+pytestmark = pytest.mark.integration
 
-@pytest.mark.integration
+
 class TestCertificateEndpoints:
     """Test certificate endpoints with real API."""
 
@@ -81,13 +83,14 @@ class TestCertificateEndpoints:
 
         # If there are enough results, pages should be different
         if len(result1.certificates) > 0 and len(result2.certificates) > 0:
-            assert result1.certificates[0].orderbookId != result2.certificates[
-                0
-            ].orderbookId
+            assert (
+                result1.certificates[0].orderbookId
+                != result2.certificates[0].orderbookId
+            )
 
     async def test_invalid_certificate_id(self, service):
         """Test getting certificate with invalid ID."""
         instrument_id = "999999999"
 
-        with pytest.raises(Exception):  # Should raise some kind of error
+        with pytest.raises(AvanzaNotFoundError):
             await service.get_certificate_info(instrument_id)

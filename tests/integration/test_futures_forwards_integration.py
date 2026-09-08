@@ -11,8 +11,9 @@ from avanza_mcp.models.future_forward import (
     FutureForwardMatrixRequest,
 )
 
+pytestmark = pytest.mark.integration
 
-@pytest.mark.integration
+
 class TestFutureForwardEndpoints:
     """Test futures/forwards endpoints with real API."""
 

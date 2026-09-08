@@ -1,15 +1,19 @@
 """Base HTTP client for Avanza API."""
 
+import asyncio
 import logging
+import math
 import uuid
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from typing import Any
 
 import httpx
 from tenacity import (
     retry,
-    retry_if_exception_type,
+    retry_if_exception,
     stop_after_attempt,
-    wait_exponential,
+    wait_exponential_jitter,
 )
 
 from .. import __version__
@@ -45,6 +49,7 @@ class AvanzaClient:
         max_connections: int = DEFAULT_MAX_CONNECTIONS,
         max_keepalive_connections: int = DEFAULT_MAX_KEEPALIVE,
         max_retries: int = DEFAULT_MAX_RETRIES,
+        request_timeout: float = DEFAULT_TIMEOUT,
     ) -> None:
         """Initialize Avanza client.
 
@@ -54,7 +59,8 @@ class AvanzaClient:
             connect_timeout: Connection timeout in seconds
             max_connections: Maximum number of concurrent connections
             max_keepalive_connections: Maximum number of keepalive connections
-            max_retries: Maximum number of retry attempts for transient failures
+            max_retries: Maximum total attempts for transient failures
+            request_timeout: Overall deadline in seconds, including retries and waits
         """
         self._base_url = base_url
         self._timeout = timeout
@@ -62,6 +68,9 @@ class AvanzaClient:
         self._max_connections = max_connections
         self._max_keepalive_connections = max_keepalive_connections
         self._max_retries = max_retries
+        if not math.isfinite(request_timeout) or request_timeout <= 0:
+            raise ValueError("request_timeout must be positive and finite")
+        self._request_timeout = request_timeout
         self._client: httpx.AsyncClient | None = None
 
     async def __aenter__(self) -> "AvanzaClient":
@@ -137,9 +146,15 @@ class AvanzaClient:
         # Try to extract error message from response
         try:
             error_data = response.json()
-            message = error_data.get("message", response.text)
-        except Exception:
-            message = response.text or f"HTTP {status_code}"
+        except ValueError:
+            error_data = None
+        message = (
+            error_data.get("message", response.text)
+            if isinstance(error_data, dict)
+            else response.text
+        )
+        message = str(message if message is not None else f"HTTP {status_code}")
+        message = message[:500] or f"HTTP {status_code}"
 
         # Add request context to error message
         context = f"[{request_id}] {path}"
@@ -160,30 +175,46 @@ class AvanzaClient:
         elif status_code in (401, 403):
             raise AvanzaAuthError(f"{context}: {message}")
         elif status_code == 429:
-            retry_after = response.headers.get("Retry-After")
-            retry_after_int = int(retry_after) if retry_after else None
-            raise AvanzaRateLimitError(retry_after_int, f"{context}: {message}")
-        else:
+            retry_after = response.headers.get("Retry-After", "").strip()
+            seconds = None
             try:
-                response_dict = response.json()
-            except Exception:
-                response_dict = None
-            raise AvanzaAPIError(status_code, f"{context}: {message}", response_dict)
+                if retry_after.isascii() and retry_after.isdecimal():
+                    seconds = int(retry_after)
+                elif retry_after:
+                    date = parsedate_to_datetime(retry_after)
+                    if date.tzinfo is None:
+                        date = date.replace(tzinfo=timezone.utc)
+                    seconds = max(
+                        0,
+                        math.ceil((date - datetime.now(timezone.utc)).total_seconds()),
+                    )
+            except (ValueError, TypeError, OverflowError):
+                pass
+            raise AvanzaRateLimitError(seconds, f"{context}: {message}")
+        else:
+            error_type = (
+                AvanzaRetryableError if 500 <= status_code < 600 else AvanzaAPIError
+            )
+            raise error_type(
+                status_code,
+                f"{context}: {message}",
+                error_data if isinstance(error_data, (dict, list)) else None,
+            )
 
     async def get(
         self, path: str, params: dict[str, Any] | None = None
-    ) -> dict[str, Any]:
+    ) -> dict[str, Any] | list[Any]:
         """GET request with retry logic, error handling, and JSON parsing.
 
         Automatically retries on transient failures (network errors, timeouts,
-        server errors) with exponential backoff.
+        server errors) with jittered exponential backoff, excluding pool timeouts.
 
         Args:
             path: API endpoint path
             params: Optional query parameters
 
         Returns:
-            JSON response as dictionary
+            JSON response as an object or array
 
         Raises:
             AvanzaError: If request fails after all retries
@@ -192,18 +223,20 @@ class AvanzaClient:
 
     async def post(
         self, path: str, json: dict[str, Any] | None = None
-    ) -> dict[str, Any]:
+    ) -> dict[str, Any] | list[Any]:
         """POST request with retry logic, error handling, and JSON parsing.
 
         Automatically retries on transient failures (network errors, timeouts,
-        server errors) with exponential backoff.
+        server errors) with jittered exponential backoff, excluding pool timeouts.
+        Intended for Avanza's read-only search/filter POST endpoints; do not use
+        automatic retries for non-idempotent operations.
 
         Args:
             path: API endpoint path
             json: Optional JSON body
 
         Returns:
-            JSON response as dictionary
+            JSON response as an object or array
 
         Raises:
             AvanzaError: If request fails after all retries
@@ -217,7 +250,7 @@ class AvanzaClient:
         *,
         params: dict[str, Any] | None = None,
         json: dict[str, Any] | None = None,
-    ) -> dict[str, Any]:
+    ) -> dict[str, Any] | list[Any]:
         """Send a request through the shared retry and response pipeline."""
         client = self._client
         if not client:
@@ -227,11 +260,17 @@ class AvanzaClient:
         post_prefix = "POST " if method == "POST" else ""
 
         @retry(
-            retry=retry_if_exception_type(
-                (httpx.TimeoutException, httpx.NetworkError, AvanzaRetryableError)
+            retry=retry_if_exception(
+                lambda exc: (
+                    isinstance(
+                        exc,
+                        (AvanzaTimeoutError, AvanzaNetworkError, AvanzaRetryableError),
+                    )
+                    and not isinstance(exc.__cause__, httpx.PoolTimeout)
+                )
             ),
             stop=stop_after_attempt(self._max_retries),
-            wait=wait_exponential(multiplier=1, min=2, max=10),
+            wait=wait_exponential_jitter(initial=2, max=10),
             reraise=True,
             before_sleep=lambda retry_state: logger.info(
                 f"Retrying {post_prefix}request [%s] %s, attempt %d after %s",
@@ -243,7 +282,7 @@ class AvanzaClient:
                 else "unknown",
             ),
         )
-        async def _request_with_retry() -> dict[str, Any]:
+        async def _request_with_retry() -> dict[str, Any] | list[Any]:
             try:
                 response = await client.request(method, path, params=params, json=json)
             except httpx.TimeoutException as e:
@@ -256,9 +295,9 @@ class AvanzaClient:
                     str(e),
                 )
                 raise AvanzaTimeoutError(
-                    f"[{request_id}] Request timeout after {self._timeout}s: {path}"
+                    f"[{request_id}] {type(e).__name__}: {path}"
                 ) from e
-            except httpx.NetworkError as e:
+            except (httpx.NetworkError, httpx.RemoteProtocolError) as e:
                 logger.warning(
                     "POST network error [%s] %s: %s"
                     if method == "POST"
@@ -272,27 +311,26 @@ class AvanzaClient:
                 ) from e
 
             if not response.is_success:
-                # Check if this is a retryable server error
-                if response.status_code >= 500:
-                    # Raise specific retryable error to trigger retry
-                    raise AvanzaRetryableError(
-                        response.status_code,
-                        f"[{request_id}] Server error (will retry): {path}",
-                    )
-                # Non-retryable errors
                 self._handle_error(response, path, request_id, params)
 
             # Handle empty responses
             if not response.content:
-                logger.debug(f"Empty {post_prefix}response [%s] %s", request_id, path)
-                return {}
+                raise AvanzaAPIError(
+                    response.status_code, f"[{request_id}] Empty JSON response: {path}"
+                )
 
             # Parse JSON response
             try:
-                return response.json()
-            except Exception as e:
+                data = response.json()
+                if not isinstance(data, (dict, list)):
+                    raise ValueError("Expected a JSON object or array")
+                return data
+            except ValueError as e:
                 logger.error(
-                    f"{post_prefix}JSON parse error [%s] %s: %s", request_id, path, str(e)
+                    f"{post_prefix}JSON parse error [%s] %s: %s",
+                    request_id,
+                    path,
+                    str(e),
                 )
                 raise AvanzaAPIError(
                     response.status_code,
@@ -303,4 +341,12 @@ class AvanzaClient:
             logger.debug("POST [%s] %s", request_id, path)
         else:
             logger.debug("GET [%s] %s params=%s", request_id, path, params)
-        return await _request_with_retry()
+        try:
+            async with asyncio.timeout(self._request_timeout):
+                return await _request_with_retry()
+        except TimeoutError as e:
+            raise AvanzaTimeoutError(
+                f"[{request_id}] Request deadline exceeded after {self._request_timeout}s: {path}"
+            ) from e
+        except AvanzaRetryableError as e:
+            raise AvanzaAPIError(e.status_code, e.message, e.response) from e

@@ -1,7 +1,11 @@
 """Future and forward contract models."""
 
-from .common import MODEL_CONFIG as MODEL_CONFIG, AvanzaModel
-from .filter import SortBy
+from datetime import date
+
+from pydantic import field_validator
+
+from .common import MODEL_CONFIG as MODEL_CONFIG, AvanzaModel, OrderBookId
+from .filter import SortBy, PaginationRequest
 from .stock import HistoricalClosingPrices, Listing, Quote
 
 
@@ -30,18 +34,21 @@ class FutureForwardDetails(AvanzaModel):
 class FutureForwardMatrixFilter(AvanzaModel):
     """Filter criteria for futures/forwards matrix."""
 
-    underlyingInstruments: list[str] = []
+    underlyingInstruments: list[OrderBookId] = []
     optionTypes: list[str] = []
     endDates: list[str] = []
     callIndicators: list[str] = []
 
+    @field_validator("endDates")
+    @classmethod
+    def validate_end_dates(cls, values: list[str]) -> list[str]:
+        return [date.fromisoformat(value).isoformat() for value in values]
 
-class FutureForwardMatrixRequest(AvanzaModel):
+
+class FutureForwardMatrixRequest(PaginationRequest):
     """Request for futures/forwards matrix list."""
 
     filter: FutureForwardMatrixFilter
-    offset: int = 0
-    limit: int = 20
     sortBy: SortBy
 
 

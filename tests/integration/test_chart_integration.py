@@ -6,8 +6,12 @@ Run with: pytest tests/integration/test_chart_integration.py -v -m integration
 
 import pytest
 
+from avanza_mcp.client.exceptions import AvanzaNotFoundError
+from avanza_mcp.models.chart import ChartData, OHLCDataPoint
 
-@pytest.mark.integration
+pytestmark = pytest.mark.integration
+
+
 class TestChartEndpoints:
     """Test chart endpoints with real API."""
 
@@ -16,37 +20,25 @@ class TestChartEndpoints:
         # Using certificate ID from user's example
         instrument_id = "2090357"
 
-        result = await service.get_marketmaker_chart(
-            instrument_id, time_period="today"
-        )
+        result = await service.get_marketmaker_chart(instrument_id, time_period="today")
 
-        assert result is not None
-        assert hasattr(result, "ohlc")
+        assert isinstance(result, ChartData)
         assert isinstance(result.ohlc, list)
-        assert hasattr(result, "metadata")
-        assert hasattr(result, "marketMaker")
+        assert result.marketMaker is None or isinstance(result.marketMaker, list)
 
     async def test_get_marketmaker_chart_etf(self, service):
         """Test getting chart data for an ETF."""
         # Using ETF ID from user's example (can use stock chart endpoint too)
         instrument_id = "5649"
 
-        result = await service.get_marketmaker_chart(
-            instrument_id, time_period="today"
-        )
+        result = await service.get_marketmaker_chart(instrument_id, time_period="today")
 
-        assert result is not None
-        assert hasattr(result, "ohlc")
-        assert len(result.ohlc) > 0
-        # First OHLC point should have all required fields
-        if len(result.ohlc) > 0:
-            point = result.ohlc[0]
-            assert hasattr(point, "timestamp")
-            assert hasattr(point, "open")
-            assert hasattr(point, "close")
-            assert hasattr(point, "high")
-            assert hasattr(point, "low")
-            assert hasattr(point, "totalVolumeTraded")
+        assert isinstance(result, ChartData)
+        # Empty charts are valid when no source points are available.
+        for point in result.ohlc:
+            assert isinstance(point, OHLCDataPoint)
+            assert isinstance(point.timestamp, int)
+            assert isinstance(point.close, float)
 
     async def test_get_marketmaker_chart_different_periods(self, service):
         """Test chart with different time periods."""
@@ -64,16 +56,11 @@ class TestChartEndpoints:
         )
         assert result_week is not None
 
-        # Week should have more data points than today (usually)
-        # Note: This might not always be true depending on trading activity
-
     async def test_chart_metadata(self, service):
         """Test that chart metadata is properly returned."""
         instrument_id = "2090357"
 
-        result = await service.get_marketmaker_chart(
-            instrument_id, time_period="today"
-        )
+        result = await service.get_marketmaker_chart(instrument_id, time_period="today")
 
         assert result.metadata is not None
         assert hasattr(result.metadata, "resolution")
@@ -85,5 +72,5 @@ class TestChartEndpoints:
         """Test getting chart with invalid instrument ID."""
         instrument_id = "999999999"
 
-        with pytest.raises(Exception):  # Should raise some kind of error
+        with pytest.raises(AvanzaNotFoundError):
             await service.get_marketmaker_chart(instrument_id, time_period="today")

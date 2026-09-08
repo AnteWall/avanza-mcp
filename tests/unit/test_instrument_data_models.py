@@ -8,19 +8,18 @@ class TestInstrumentDataModels:
 
     def test_number_of_owners(self):
         """Test NumberOfOwners model."""
-        data = {"orderbookId": "5247", "numberOfOwners": 50000, "timestamp": 123456}
+        data = {
+            "ownersPoints": [{"numberOfOwners": 50000, "timestamp": 123456}],
+            "historySummary": {"oneYearChange": 0},
+        }
         owners = NumberOfOwners.model_validate(data)
-        assert owners.orderbookId == "5247"
-        assert owners.numberOfOwners == 50000
+        assert owners.ownersPoints[0].numberOfOwners == 50000
+        assert owners.historySummary.oneYearChange == 0
 
     def test_short_selling_data(self):
         """Test ShortSellingData model."""
         data = {
-            "orderbookId": "5247",
-            "shortSellingVolume": 100000.0,
-            "shortSellingPercentage": 5.5,
-            "date": "2026-02-05",
+            "shortSellingHistory": [{"timestamp": 123456, "ratio": 0.011}],
         }
         short_data = ShortSellingData.model_validate(data)
-        assert short_data.orderbookId == "5247"
-        assert short_data.shortSellingPercentage == 5.5
+        assert short_data.shortSellingHistory[0].ratio == 0.011

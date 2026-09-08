@@ -1,124 +1,92 @@
-"""Additional instrument data MCP tools."""
+"""Additional instrument data tools."""
 
 from fastmcp import Context
 
 from .. import mcp
-from ..client import AvanzaClient
+from ..models.common import Limit, MarketmakerPeriod, Offset, OrderBookId
+from ..models.contracts import MarketmakerChartPage, OwnersPage, ShortSellingPage
 from ..services import MarketDataService
-from ._logging import log_errors
+from ._helpers import READ_ONLY, api_errors, page_metadata
 
 
-@mcp.tool()
-async def get_number_of_owners(ctx: Context, instrument_id: str) -> dict:
-    """Get the number of owners for any instrument.
+@mcp.tool(annotations=READ_ONLY)
+async def get_number_of_owners(
+    ctx: Context,
+    order_book_id: OrderBookId,
+    offset: Offset = 0,
+    limit: Limit = 20,
+) -> OwnersPage:
+    """Page Avanza ownersPoints in source order and preserve the full historySummary.
 
-    Returns the current number of Avanza customers who own this instrument.
-    Works for stocks, funds, ETFs, certificates, warrants, etc.
-
-    Args:
-        ctx: MCP context for logging
-        instrument_id: Avanza instrument ID (orderbookId)
-
-    Returns:
-        Number of owners data:
-        - orderbookId: Instrument identifier
-        - numberOfOwners: Current owner count
-        - timestamp: When data was retrieved
-
-    Examples:
-        Check ownership for a stock:
-        >>> get_number_of_owners(instrument_id="5247")
-
-        Check ownership for an ETF:
-        >>> get_number_of_owners(instrument_id="742236")
+    data contains upstream fields, not a fabricated top-level owner count. Summary
+    fields describe the full source history, not this page. Not market-wide ownership.
     """
-    ctx.info(f"Fetching number of owners for ID: {instrument_id}")
-
-    async with log_errors(ctx, "Failed to fetch number of owners"):
-        async with AvanzaClient() as client:
-            service = MarketDataService(client)
-            result = await service.get_number_of_owners(instrument_id)
-
-        if result.numberOfOwners is not None:
-            ctx.info(f"Instrument has {result.numberOfOwners} owners")
-        else:
-            ctx.info("Retrieved number of owners data")
-        return result.model_dump(by_alias=True, exclude_none=True)
+    with api_errors():
+        history = await MarketDataService(
+            ctx.lifespan_context["client"]
+        ).get_number_of_owners(order_book_id)
+    return OwnersPage(
+        data=history.model_copy(
+            update={"ownersPoints": history.ownersPoints[offset : offset + limit]}
+        ),
+        pagination=page_metadata(len(history.ownersPoints), offset, limit),
+    )
 
 
-@mcp.tool()
-async def get_short_selling(ctx: Context, instrument_id: str) -> dict:
-    """Get short selling data for an instrument.
+@mcp.tool(annotations=READ_ONLY)
+async def get_short_selling(
+    ctx: Context,
+    order_book_id: OrderBookId,
+    offset: Offset = 0,
+    limit: Limit = 20,
+) -> ShortSellingPage:
+    """Page shortSellingHistory in source order; timestamp/ratio values are not converted.
 
-    Returns short selling volume and percentage for the instrument,
-    indicating how heavily shorted it is.
-
-    Args:
-        ctx: MCP context for logging
-        instrument_id: Avanza instrument ID (orderbookId)
-
-    Returns:
-        Short selling data:
-        - orderbookId: Instrument identifier
-        - shortSellingVolume: Volume of shares sold short
-        - shortSellingPercentage: Percentage of float sold short
-        - date: Date of data
-
-    Examples:
-        Check short interest for a stock:
-        >>> get_short_selling(instrument_id="5247")
+    data preserves upstream fields. A page is not the full history or a latest-value
+    summary. Offset zero is the beginning of source order, not necessarily newest.
     """
-    ctx.info(f"Fetching short selling data for ID: {instrument_id}")
+    with api_errors():
+        history = await MarketDataService(
+            ctx.lifespan_context["client"]
+        ).get_short_selling(order_book_id)
+    return ShortSellingPage(
+        data=history.model_copy(
+            update={
+                "shortSellingHistory": history.shortSellingHistory[
+                    offset : offset + limit
+                ]
+            }
+        ),
+        pagination=page_metadata(len(history.shortSellingHistory), offset, limit),
+    )
 
-    async with log_errors(ctx, "Failed to fetch short selling data"):
-        async with AvanzaClient() as client:
-            service = MarketDataService(client)
-            result = await service.get_short_selling(instrument_id)
 
-        ctx.info("Retrieved short selling data")
-        return result.model_dump(by_alias=True, exclude_none=True)
-
-
-@mcp.tool()
+@mcp.tool(annotations=READ_ONLY)
 async def get_marketmaker_chart(
-    ctx: Context, instrument_id: str, time_period: str = "today"
-) -> dict:
-    """Get price chart data for traded products (certificates, warrants, ETFs).
+    ctx: Context,
+    order_book_id: OrderBookId,
+    time_period: MarketmakerPeriod = "today",
+    offset: Offset = 0,
+    limit: Limit = 100,
+) -> MarketmakerChartPage:
+    """Get raw OHLC and market-maker data for traded products, not stock/fund charts.
 
-    Returns OHLC (Open-High-Low-Close) candlestick data with market maker
-    information for certificates, warrants, ETFs, and other traded products.
-
-    Args:
-        ctx: MCP context for logging
-        instrument_id: Avanza instrument ID (orderbookId)
-        time_period: Time period for chart data (default: "today")
-            Available: today, one_week, one_month, three_months, six_months,
-            one_year, three_years, five_years
-
-    Returns:
-        Chart data with:
-        - ohlc: Array of OHLC candlestick data points
-        - metadata: Chart resolution and available resolutions
-        - from/to: Date range covered
-        - marketMaker: Array of market maker data (may be empty)
-
-    Examples:
-        Get today's chart for a certificate:
-        >>> get_marketmaker_chart(instrument_id="2090357", time_period="today")
-
-        Get 1-month chart for an ETF:
-        >>> get_marketmaker_chart(instrument_id="5649", time_period="one_month")
-
-        Get chart for a warrant:
-        >>> get_marketmaker_chart(instrument_id="2267542")
+    Both arrays are independently sliced with the same offset/limit in source
+    order; their metadata counts are separate. No point alignment, aggregation
+    or unit conversion is inferred. Upstream fields are under data, separate from
+    wrapper pagination keys. Not guaranteed real-time.
     """
-    ctx.info(f"Fetching chart data for ID: {instrument_id}, period: {time_period}")
-
-    async with log_errors(ctx, "Failed to fetch chart data"):
-        async with AvanzaClient() as client:
-            service = MarketDataService(client)
-            result = await service.get_marketmaker_chart(instrument_id, time_period)
-
-        data_points = len(result.ohlc) if result.ohlc else 0
-        ctx.info(f"Retrieved chart with {data_points} data points")
-        return result.model_dump(by_alias=True, exclude_none=True)
+    with api_errors():
+        chart = await MarketDataService(
+            ctx.lifespan_context["client"]
+        ).get_marketmaker_chart(order_book_id, time_period)
+    updates = {"ohlc": chart.ohlc[offset : offset + limit]}
+    maker_page = None
+    if chart.marketMaker is not None:
+        updates["marketMaker"] = chart.marketMaker[offset : offset + limit]
+        maker_page = page_metadata(len(chart.marketMaker), offset, limit)
+    return MarketmakerChartPage(
+        data=chart.model_copy(update=updates),
+        pagination=page_metadata(len(chart.ohlc), offset, limit),
+        marketMakerPagination=maker_page,
+    )

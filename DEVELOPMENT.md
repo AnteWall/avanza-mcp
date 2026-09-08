@@ -1,125 +1,101 @@
-# Development Guide - Avanza MCP Server
+# Development Guide
 
-This guide explains how to develop and test the Avanza MCP server locally, including integration with Claude Desktop.
+## Setup
 
-## 🚀 Quick Start
-
-### Prerequisites
-
-- Python 3.12 or higher
-- [uv](https://github.com/astral-sh/uv) package manager
-- [Claude Desktop](https://claude.ai/download) (optional, for MCP testing)
-
-### Initial Setup
+Requires Python >=3.12 and [uv](https://docs.astral.sh/uv/). FastMCP is pinned to
+3.4.7. Run from the repository root:
 
 ```bash
-# Clone the repository
-git clone https://github.com/yourusername/avanza-mcp.git
-cd avanza-mcp
-
-# Install dependencies
-uv sync
-
-# Verify installation
-uv run python -c "from avanza_mcp import mcp; print('✓ Import successful')"
+uv sync --all-extras
+uv run avanza-mcp
 ```
 
-### Test with Claude Desktop
-
-This is the **recommended way** to test the full MCP integration.
-
-#### Step 1: Configure Claude Desktop for Local Development
-
-Edit your Claude Desktop configuration file:
-
-**Linux:** `~/.claude.json`
-
-Add the local development configuration:
+The application entry point defaults to local stdio. For a local MCP client that
+launches a subprocess, use its documented configuration format. A common format is:
 
 ```json
 {
   "mcpServers": {
     "avanza-dev": {
       "command": "uv",
-      "args": [
-        "--directory",
-        "/absolute/path/to/avanza-mcp",
-        "run",
-        "avanza-mcp"
-      ]
+      "args": ["--directory", "/absolute/path/to/avanza-mcp", "run", "avanza-mcp"]
     }
   }
 }
 ```
 
-**Replace `/absolute/path/to/avanza-mcp`** with your actual project path:
+Do not write diagnostic output to stdout on stdio transport.
+
+For HTTP using the [FastMCP v3 CLI](https://gofastmcp.com/v3/getting-started/quickstart):
 
 ```bash
-# Get the absolute path
-pwd
-# Example: /Users/username/projects/avanza-mcp
+uv run fastmcp run src/avanza_mcp/__init__.py:mcp --transport http
 ```
 
-#### Step 2: Restart Claude Desktop
+This starts a transport endpoint; it does not deploy a hosted service. A ChatGPT
+remote connection needs a separate reachable deployment, not a local stdio command.
+Public upstream endpoints need no account authentication; remote MCP access controls
+are deployment-specific, not implied by upstream public access.
 
-1. Quit Claude Desktop completely
-2. Start Claude Desktop again
-3. The MCP server will be loaded automatically
-
-#### Step 3: Verify Connection
-
-In Claude Desktop, ask:
-
-```
-Can you list the available MCP tools?
-```
-
-You should see all Avanza tools listed.
-
-#### Step 4: Test Tools
-
-Try these queries in Claude Desktop:
-
-```
-# Search for stocks
-Search for Volvo stock on Avanza
-
-# Get stock quote
-Get the current stock quote for Volvo B (ID: 5269)
-
-# Get historical chart
-Show me a 3-month price chart for Ericsson (ID: 5286)
-
-# Get fund sustainability
-What's the ESG score for Avanza Zero fund (ID: 41567)?
-
-# Get order book
-Show me the order book depth for H&M (ID: 5364)
-
-# Get dividends (new)
-What dividends has SEB paid over the years?
-
-# Get fund holdings (new)
-Show me the portfolio allocation for Avanza Global fund
-```
-
-## 🧪 Running Tests
+## Tests
 
 ```bash
-# Install dev dependencies
-uv sync --all-extras
-
-# Run all tests
-uv run pytest tests/
-
-# Run unit tests only (fast, no API calls)
+uv run pytest tests/unit/test_workflows.py -v
 uv run pytest tests/unit -v
-
-# Run integration tests (hits real API, use sparingly)
-uv run pytest tests/integration -v --tb=short
+uv run pytest tests/integration -v
 ```
 
-### Test Coverage
+Unit tests use mocks or an in-process FastMCP client. Integration tests contact the
+real public API and can be affected by upstream availability or schema changes.
+Offline transport checks also start a stdio subprocess and a loopback HTTP server;
+neither makes upstream API calls. Release publishing is gated on the unit suite.
+The guidance test checks rendered prompts, JSON list validation, the 34-tool /
+3-prompt inventory, two static Markdown resources and two instrument templates.
 
-- **Unit tests** (`tests/unit/`): Test client, models, and error handling with mocked responses
-- **Integration tests** (`tests/integration/`): Test all 18 tools against the real Avanza API
+## Public Contract
+
+v2 uses `order_book_id` for public tool ID inputs, without an `instrument_id`
+compatibility alias. Resource templates also use `{order_book_id}`. Search hits are
+compact typed discovery records from at most 50 candidates; matching candidate
+totals differ from `upstreamTotalNumberOfHits`. Most other keys remain upstream names.
+Upstream-model JSON omits absent optional fields and preserves explicit null/zero/false.
+
+All charts (fund included), owners and short selling use `data` plus `pagination`;
+trades use `trades` plus `pagination`. Analysis/dividends/financials require `metric`
+and return one series at `data[selection][metric]`, with `available_metrics` and
+pagination. Use documented names such as `priceEarningsRatio` for stock ratios,
+not invented probes. History pages default to offset=0 and limit=20 (charts: 100),
+with limits 1..100.
+
+Local history pagination bounds MCP output, not upstream traffic: each page call
+refetches the source payload. The lifespan HTTP pool enables connection reuse, not
+a data cache; no data cache is added. Separate pages can see changed snapshots.
+Source metadata describes the full source period/history, not necessarily the page.
+Fund-guide flat `development*` fields and `productFee`/`managementFee` retain source
+scales; do not equate them with fund-period `change` or assume chart `y` is NAV/return.
+
+Keep public type annotations accurate: FastMCP derives input/output schemas from
+Python signatures and return annotations. A Python consumer should inspect the
+registered `inputSchema`/`outputSchema` and use structured tool results rather than
+scraping human-readable text. Do not claim that every upstream field has a known
+unit, that a generic dictionary describes a stable typed payload, or that a
+requested chart period guarantees complete daily data.
+
+Prompt arguments are strings in MCP. FastMCP decodes JSON strings for `list[str]`:
+
+```python
+result = await client.get_prompt(
+    "compare_funds", {"fund_names": '["Avanza Zero", "Avanza Global"]'}
+)
+```
+
+Its Python client can also serialize native lists; other clients may not. No
+prompt-to-tool transform is enabled, so clients without prompt support use tools
+directly. Keep validation and rendered-content tests at this boundary. Templates
+and static usage resources use `text/markdown`; essential behavior belongs in
+server instructions, not only optional resources.
+
+FastMCP's Python client may warn that its inferred Decimal-string regex is not
+supported by Pydantic's regex engine. Server-side Decimal validation and JSON
+Schema checks still apply; JSON Decimal values are strings. Client-side type
+inference is not a substitute for validating structured results.

@@ -2,6 +2,8 @@
 
 from typing import Any
 
+from pydantic import TypeAdapter, validate_call
+
 from ..client.base import AvanzaClient
 from ..client.endpoints import PublicEndpoint
 from ..models.certificate import (
@@ -11,6 +13,8 @@ from ..models.certificate import (
     CertificateInfo,
 )
 from ..models.chart import ChartData
+from ..models.common import FundPeriod, MarketmakerPeriod, StockPeriod
+from ..models.contracts import AnalysisPoint, FinancialSection
 from ..models.etf import (
     ETFDetails,
     ETFFilterRequest,
@@ -72,15 +76,16 @@ class MarketDataService:
         return FundInfo.model_validate(raw_data)
 
     async def get_order_depth(self, instrument_id: str) -> OrderDepth:
-        """Fetch real-time order book depth with buy and sell levels."""
+        """Fetch latest available order book depth with buy and sell levels."""
         endpoint = PublicEndpoint.STOCK_ORDERDEPTH.format(id=instrument_id)
         raw_data = await self._client.get(endpoint)
         return OrderDepth.model_validate(raw_data)
 
+    @validate_call
     async def get_chart_data(
         self,
         instrument_id: str,
-        time_period: str = "one_year",
+        time_period: StockPeriod = "one_year",
     ) -> StockChart:
         """Fetch historical chart data with OHLC values.
 
@@ -101,52 +106,60 @@ class MarketDataService:
         """Fetch recent trades for an instrument."""
         endpoint = PublicEndpoint.STOCK_TRADES.format(id=instrument_id)
         raw_data = await self._client.get(endpoint)
-        return [Trade.model_validate(trade) for trade in raw_data]
+        return TypeAdapter(list[Trade]).validate_python(raw_data)
 
     async def get_broker_trades(self, instrument_id: str) -> list[BrokerTradeSummary]:
         """Fetch broker trade summaries with buy/sell volumes."""
         endpoint = PublicEndpoint.STOCK_BROKER_TRADES.format(id=instrument_id)
         raw_data = await self._client.get(endpoint)
-        return [BrokerTradeSummary.model_validate(trade) for trade in raw_data]
+        return TypeAdapter(list[BrokerTradeSummary]).validate_python(raw_data)
 
-    async def get_stock_analysis(self, instrument_id: str) -> dict[str, Any]:
-        """Fetch stock analysis with key ratios by year and quarter."""
+    async def get_stock_analysis(
+        self,
+        instrument_id: str,
+        selection: str | None = None,
+    ) -> dict[str, Any]:
+        """Validate the root object and only the requested section's metric series."""
         endpoint = PublicEndpoint.STOCK_ANALYSIS.format(id=instrument_id)
-        return await self._client.get(endpoint)
+        analysis = TypeAdapter(dict[str, Any]).validate_python(
+            await self._client.get(endpoint)
+        )
+        if selection is not None and selection in analysis:
+            TypeAdapter(dict[str, list[AnalysisPoint] | None] | None).validate_python(
+                analysis[selection]
+            )
+        return analysis
 
     async def get_dividends(self, instrument_id: str) -> dict[str, Any]:
-        """Fetch dividend history from stock analysis data.
+        """Select the upstream dividend section; preserve absent versus empty data."""
+        analysis = await self.get_stock_analysis(instrument_id, "dividendsByYear")
+        return {key: analysis[key] for key in ("dividendsByYear",) if key in analysis}
 
-        Return dividendsByYear (defaulting to an empty list), with dividend
-        (amount per share), exDate (ex-dividend date), paymentDate (payment
-        date), and yield (dividend yield percentage).
-        """
-        endpoint = PublicEndpoint.STOCK_ANALYSIS.format(id=instrument_id)
-        analysis = await self._client.get(endpoint)
-        return {
-            "dividendsByYear": analysis.get("dividendsByYear", []),
-        }
-
-    async def get_company_financials(self, instrument_id: str) -> dict[str, Any]:
+    @validate_call
+    async def get_company_financials(
+        self,
+        instrument_id: str,
+        selection: FinancialSection = "companyFinancialsByYear",
+    ) -> dict[str, Any]:
         """Fetch company financial data from stock analysis.
 
         Return yearly, quarterly, and quarterly TTM financials, including
         revenue, profit margins, earnings, and other financial metrics.
         """
-        endpoint = PublicEndpoint.STOCK_ANALYSIS.format(id=instrument_id)
-        analysis = await self._client.get(endpoint)
-        return {
-            "companyFinancialsByYear": analysis.get("companyFinancialsByYear", []),
-            "companyFinancialsByQuarter": analysis.get("companyFinancialsByQuarter", []),
-            "companyFinancialsByQuarterTTM": analysis.get(
-                "companyFinancialsByQuarterTTM", []
-            ),
-        }
+        analysis = await self.get_stock_analysis(instrument_id, selection)
+        return {selection: analysis[selection]} if selection in analysis else {}
 
     async def get_stock_quote(self, instrument_id: str) -> Quote:
-        """Fetch a real-time quote with buy, sell, last price, and trading volumes."""
+        """Fetch latest available quote; reject envelopes without any quote fields."""
         endpoint = PublicEndpoint.STOCK_QUOTE.format(id=instrument_id)
         raw_data = await self._client.get(endpoint)
+        if (
+            not isinstance(raw_data, dict)
+            or not Quote.model_fields.keys() & raw_data.keys()
+        ):
+            raise ValueError(
+                "Expected a quote object containing recognized quote fields"
+            )
         return Quote.model_validate(raw_data)
 
     async def get_fund_sustainability(self, instrument_id: str) -> FundSustainability:
@@ -155,8 +168,9 @@ class MarketDataService:
         raw_data = await self._client.get(endpoint)
         return FundSustainability.model_validate(raw_data)
 
+    @validate_call
     async def get_fund_chart(
-        self, instrument_id: str, time_period: str = "three_years"
+        self, instrument_id: str, time_period: FundPeriod = "three_years"
     ) -> FundChart:
         """Fetch fund chart data for a specific time period.
 
@@ -172,7 +186,7 @@ class MarketDataService:
         """Fetch available fund chart periods with performance changes."""
         endpoint = PublicEndpoint.FUND_CHART_PERIODS.format(id=instrument_id)
         raw_data = await self._client.get(endpoint)
-        return [FundChartPeriod.model_validate(period) for period in raw_data]
+        return TypeAdapter(list[FundChartPeriod]).validate_python(raw_data)
 
     async def get_fund_description(self, instrument_id: str) -> FundDescription:
         """Fetch fund description and detailed category information."""
@@ -188,7 +202,10 @@ class MarketDataService:
         """Filter and list certificates with pagination."""
         endpoint = PublicEndpoint.CERTIFICATE_FILTER.value
         raw_data = await self._client.post(
-            endpoint, json=filter_request.model_dump(by_alias=True, exclude_none=True)
+            endpoint,
+            json=filter_request.model_dump(
+                mode="json", by_alias=True, exclude_none=True
+            ),
         )
         return CertificateFilterResponse.model_validate(raw_data)
 
@@ -212,7 +229,10 @@ class MarketDataService:
         """Filter and list warrants with pagination."""
         endpoint = PublicEndpoint.WARRANT_FILTER.value
         raw_data = await self._client.post(
-            endpoint, json=filter_request.model_dump(by_alias=True, exclude_none=True)
+            endpoint,
+            json=filter_request.model_dump(
+                mode="json", by_alias=True, exclude_none=True
+            ),
         )
         return WarrantFilterResponse.model_validate(raw_data)
 
@@ -234,7 +254,10 @@ class MarketDataService:
         """Filter and list ETFs with pagination."""
         endpoint = PublicEndpoint.ETF_FILTER.value
         raw_data = await self._client.post(
-            endpoint, json=filter_request.model_dump(by_alias=True, exclude_none=True)
+            endpoint,
+            json=filter_request.model_dump(
+                mode="json", by_alias=True, exclude_none=True
+            ),
         )
         return ETFFilterResponse.model_validate(raw_data)
 
@@ -258,7 +281,8 @@ class MarketDataService:
         """List futures and forwards using the matrix endpoint."""
         endpoint = PublicEndpoint.FUTURE_FORWARD_MATRIX.value
         raw_data = await self._client.post(
-            endpoint, json=request.model_dump(by_alias=True, exclude_none=True)
+            endpoint,
+            json=request.model_dump(mode="json", by_alias=True, exclude_none=True),
         )
         return FutureForwardMatrixResponse.model_validate(raw_data)
 
@@ -280,7 +304,7 @@ class MarketDataService:
         """Get futures/forwards filter options, including underlying instruments and dates."""
         endpoint = PublicEndpoint.FUTURE_FORWARD_FILTER_OPTIONS.value
         raw_data = await self._client.get(endpoint)
-        return raw_data
+        return TypeAdapter(dict[str, Any]).validate_python(raw_data)
 
     # === Additional Features ===
 
@@ -296,8 +320,9 @@ class MarketDataService:
         raw_data = await self._client.get(endpoint)
         return ShortSellingData.model_validate(raw_data)
 
+    @validate_call
     async def get_marketmaker_chart(
-        self, instrument_id: str, time_period: str = "today"
+        self, instrument_id: str, time_period: MarketmakerPeriod = "today"
     ) -> ChartData:
         """Get price chart data for traded products (certificates, warrants, ETFs).
 
@@ -308,4 +333,3 @@ class MarketDataService:
         endpoint = PublicEndpoint.MARKETMAKER_CHART.format(id=instrument_id)
         raw_data = await self._client.get(endpoint, params={"timePeriod": time_period})
         return ChartData.model_validate(raw_data)
-

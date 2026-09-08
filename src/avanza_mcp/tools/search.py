@@ -1,112 +1,60 @@
-"""Search-related MCP tools."""
+"""Curated search and exact candidate matching."""
 
 from typing import Literal
 
 from fastmcp import Context
+from fastmcp.exceptions import ToolError
 
 from .. import mcp
-from ..client import AvanzaClient
+from ..models.common import OrderBookId, SearchLimit, SearchQuery
+from ..models.search import InstrumentHit, InstrumentSearch
 from ..services import SearchService
-from ._logging import log_errors
+from ._helpers import READ_ONLY, api_errors
 
 
-@mcp.tool()
+@mcp.tool(annotations=READ_ONLY)
 async def search_instruments(
     ctx: Context,
-    query: str,
+    query: SearchQuery,
     instrument_type: Literal[
         "stock", "fund", "etf", "certificate", "warrant", "all"
     ] = "all",
-    limit: int = 10,
-) -> dict:
-    """Search for financial instruments on Avanza.
+    limit: SearchLimit = 10,
+) -> InstrumentSearch:
+    """Search names, tickers or ISINs and return compact instrument identities.
 
-    Searches across stocks, funds, ETFs, certificates, and warrants.
-    Returns detailed search results including price info, sectors, and metadata.
-
-    Args:
-        ctx: MCP context for logging
-        query: Search term (company name, ticker symbol, or ISIN)
-        instrument_type: Type of instrument to search for. Options:
-            - "stock": Stocks only
-            - "fund": Mutual funds only
-            - "etf": ETFs only
-            - "certificate": Certificates only
-            - "warrant": Warrants only
-            - "all": All instrument types (default)
-        limit: Maximum number of results to return (1-50, default: 10)
-
-    Returns:
-        Search response with:
-        - totalNumberOfHits: Total matching results
-        - hits: Array of search results with:
-            - orderBookId: Unique ID
-            - type: Instrument type (STOCK, FUND, etc.)
-            - title: Name
-            - price: Price information
-            - marketPlaceName: Exchange/market
-            - And more details...
-        - facets: Type breakdowns with counts
-        - searchQuery: The query that was executed
-
-    Examples:
-        Search for Volvo stock:
-        >>> search_instruments(query="Volvo", instrument_type="stock", limit=5)
-
-        Search for any instrument matching "Global":
-        >>> search_instruments(query="Global", instrument_type="all", limit=10)
+    Select by name, type, exchange, ISIN and currency, not rank alone. One page
+    of at most 50 candidates is examined, with stock/fund filtering upstream;
+    other types are filtered locally. All excludes FAQ, unknown types and invalid
+    IDs. Type/ID filtering precedes limit. totalNumberOfHits counts valid matching
+    candidates before limit, not a full filtered universe. candidatesExamined
+    includes discarded hits; upstreamTotalNumberOfHits is before local filtering.
+    No additional pages are fetched. Search is not an authoritative ID registry.
     """
-    ctx.info(f"Searching for '{query}' (type: {instrument_type}, limit: {limit})")
-
-    async with log_errors(ctx, "Search failed"):
-        # Validate limit
-        limit = max(1, min(limit, 50))
-
-        async with AvanzaClient() as client:
-            service = SearchService(client)
-            response = await service.search(
-                query=query,
-                instrument_type=instrument_type if instrument_type != "all" else None,
-                limit=limit,
-            )
-
-        ctx.info(f"Found {response.totalNumberOfHits} total hits, returning {len(response.hits)} results")
-
-        # Return the full response as dict
-        return response.model_dump(by_alias=True)
+    with api_errors():
+        return await SearchService(ctx.lifespan_context["client"]).search(
+            query, instrument_type, limit
+        )
 
 
-@mcp.tool()
+@mcp.tool(annotations=READ_ONLY)
 async def get_instrument_by_order_book_id(
-    ctx: Context,
-    order_book_id: str,
-) -> dict | None:
-    """Look up a financial instrument by its order book ID.
+    ctx: Context, order_book_id: OrderBookId
+) -> InstrumentHit:
+    """Match an exact order_book_id among at most 50 search candidates.
 
-    The order book ID is the unique identifier returned from search results.
-
-    Args:
-        ctx: MCP context for logging
-        order_book_id: Order book ID to search for
-
-    Returns:
-        First matching search hit if found, None otherwise
-
-    Examples:
-        Look up by order book ID:
-        >>> get_instrument_by_order_book_id(order_book_id="878733")
+    Search is not authoritative: failure to match does not prove the ID is
+    invalid. Never substitutes the first or a similarly named search result.
     """
-    ctx.info(f"Looking up instrument with order book ID: {order_book_id}")
-
-    async with log_errors(ctx, "Lookup failed"):
-        async with AvanzaClient() as client:
-            service = SearchService(client)
-            response = await service.search(query=order_book_id, limit=1)
-
-        if response.hits:
-            hit = response.hits[0]
-            ctx.info(f"Found: {hit.title}")
-            return hit.model_dump()
-        else:
-            ctx.info("No instrument found with that order book ID")
-            return None
+    with api_errors():
+        response = await SearchService(ctx.lifespan_context["client"]).search(
+            order_book_id, limit=50
+        )
+    for hit in response.hits:
+        if hit.order_book_id == order_book_id:
+            return hit
+    raise ToolError(
+        f"No exact order_book_id match among {response.candidatesExamined} search candidates "
+        "(maximum 50). Search is not authoritative; this does not prove the ID is invalid. "
+        "Search by name or ISIN and confirm the returned order_book_id, type and exchange."
+    )

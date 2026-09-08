@@ -1,8 +1,9 @@
 """Common models and enums shared across Avanza API."""
 
 from enum import Enum
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, model_serializer
 
 
 MODEL_CONFIG = ConfigDict(
@@ -10,6 +11,7 @@ MODEL_CONFIG = ConfigDict(
     str_strip_whitespace=True,
     validate_assignment=True,
     extra="allow",  # Don't fail on extra fields from API
+    serialize_by_alias=True,
 )
 
 
@@ -17,6 +19,69 @@ class AvanzaModel(BaseModel):
     """Shared validation configuration for Avanza API models."""
 
     model_config = MODEL_CONFIG
+
+    @model_serializer(mode="wrap")
+    def omit_unreported_optionals(self, handler, info):
+        """Keep explicit null/zero/false, without adding absent optional fields to JSON."""
+        data = handler(self)
+        if info.mode == "json":
+            by_alias = (
+                info.by_alias
+                if info.by_alias is not None
+                else self.model_config.get("serialize_by_alias", False)
+            )
+            for name, field in type(self).model_fields.items():
+                if name not in self.model_fields_set and field.default is None:
+                    key = (
+                        (field.serialization_alias or field.alias or name)
+                        if by_alias
+                        else name
+                    )
+                    data.pop(key, None)
+        return data
+
+
+OrderBookId = Annotated[
+    str,
+    Field(
+        pattern=r"^[0-9]+$",
+        min_length=1,
+        description="Avanza order-book ID from discovery; not the separate instrumentId.",
+    ),
+]
+Offset = Annotated[int, Field(ge=0)]
+Limit = Annotated[int, Field(ge=1, le=100)]
+SearchLimit = Annotated[int, Field(ge=1, le=50)]
+SearchQuery = Annotated[str, Field(min_length=1, max_length=200, pattern=r"\S")]
+StockPeriod = Literal[
+    "today",
+    "one_week",
+    "one_month",
+    "three_months",
+    "this_year",
+    "one_year",
+    "three_years",
+    "five_years",
+]
+MarketmakerPeriod = Literal[
+    "today",
+    "one_week",
+    "one_month",
+    "three_months",
+    "six_months",
+    "one_year",
+    "three_years",
+    "five_years",
+]
+FundPeriod = Literal[
+    "one_week",
+    "one_month",
+    "three_months",
+    "this_year",
+    "one_year",
+    "three_years",
+    "five_years",
+]
 
 
 class InstrumentType(str, Enum):

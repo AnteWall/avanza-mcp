@@ -1,127 +1,126 @@
-"""URI-based instrument resources."""
+"""Human-readable instrument summaries using the server's shared HTTP client."""
+
+from fastmcp import Context
+from fastmcp.resources import ResourceContent, ResourceResult
 
 from .. import mcp
-from ..client import AvanzaClient
+from ..models.common import OrderBookId
 from ..services import MarketDataService
 
 
 def format_stock_markdown(stock_data: dict) -> str:
-    """Format stock info as markdown.
-
-    Args:
-        stock_data: Stock information dictionary
-
-    Returns:
-        Formatted markdown string
-    """
-    quote = stock_data.get("quote", {})
-    company = stock_data.get("company", {})
-    listing = stock_data.get("listing", {})
-    key_ratios = stock_data.get("key_ratios") or stock_data.get("keyIndicators", {})
-
-    name = stock_data.get("name", "Unknown")
-    price = quote.get("last", "N/A")
-    change = quote.get("change", 0)
-    change_pct = quote.get("changePercent", 0)
-    currency = listing.get("currency", "SEK")
-
-    md = f"# {name}\n\n"
-    md += f"**Price:** {price} {currency}\n"
-    md += f"**Change:** {change:+.2f} ({change_pct:+.2f}%)\n\n"
-
-    if company:
-        if desc := company.get("description"):
-            md += f"## Company\n{desc}\n\n"
-        if market_cap := company.get("marketCapital"):
-            if isinstance(market_cap, dict):
-                cap_value = market_cap.get("value", 0)
-                cap_currency = market_cap.get("currency", currency)
-                md += f"**Market Cap:** {cap_value:,.0f} {cap_currency}\n"
-            else:
-                md += f"**Market Cap:** {market_cap:,.0f} {currency}\n"
-
-    if key_ratios:
-        md += "\n## Key Ratios\n"
-        if pe := key_ratios.get("priceEarningsRatio"):
-            md += f"- **P/E Ratio:** {pe:.2f}\n"
-        if div_yield := key_ratios.get("directYield"):
-            md += f"- **Dividend Yield:** {div_yield:.2f}%\n"
-
-    return md
+    """Preserve unknown and zero values without inferring upstream units."""
+    quote = stock_data.get("quote") or {}
+    company = stock_data.get("company") or {}
+    listing = stock_data.get("listing") or {}
+    ratios = stock_data.get("keyIndicators") or {}
+    lines = [f"# {stock_data.get('name', 'Unknown')}", ""]
+    fields = {
+        "Order-book ID": stock_data.get("orderbookId"),
+        "ISIN": stock_data.get("isin"),
+        "Currency": listing.get("currency"),
+        "Price": quote.get("last"),
+        "Change (source value)": quote.get("change"),
+        "Change percent (source value)": quote.get("changePercent"),
+        "Quote time (source value)": quote.get("timeOfLast"),
+        "Quote updated (source value)": quote.get("updated"),
+        "Real-time flag": quote.get("isRealTime"),
+        "P/E": ratios.get("priceEarningsRatio"),
+        "Dividend yield (source value)": ratios.get("directYield"),
+        "Report date": ratios.get("reportDate"),
+    }
+    for label, value in fields.items():
+        lines.append(f"**{label}:** {value if value is not None else 'Unknown'}")
+    market_cap = ratios.get("marketCapital")
+    if market_cap is None:
+        market_cap = company.get("marketCapital")
+    if isinstance(market_cap, dict):
+        value = market_cap.get("value")
+        currency = market_cap.get("currency")
+        lines.append(
+            f"**Market cap:** {value if value is not None else 'Unknown'} {currency or 'Unknown currency'}"
+        )
+    if company.get("description"):
+        lines.extend(["", "## Company (Upstream Text)", company["description"]])
+    lines.extend(
+        [
+            "",
+            "Latest available data, not guaranteed live. Source values are not rescaled; timestamp units must be verified before conversion.",
+        ]
+    )
+    return "\n".join(lines)
 
 
 def format_fund_markdown(fund_data: dict) -> str:
-    """Format fund info as markdown.
-
-    Args:
-        fund_data: Fund information dictionary
-
-    Returns:
-        Formatted markdown string
-    """
-    name = fund_data.get("name", "Unknown")
-    nav = fund_data.get("nav", "N/A")
-    currency = fund_data.get("currency", "SEK")
-
-    md = f"# {name}\n\n"
-    md += f"**NAV:** {nav} {currency}\n\n"
-
-    if desc := fund_data.get("description"):
-        md += f"{desc}\n\n"
-
-    if development := fund_data.get("development"):
-        md += "## Performance\n"
-        if ytd := development.get("thisYear"):
-            md += f"- **YTD:** {ytd:+.2f}%\n"
-        if one_year := development.get("oneYear"):
-            md += f"- **1 Year:** {one_year:+.2f}%\n"
-        if three_years := development.get("threeYears"):
-            md += f"- **3 Years:** {three_years:+.2f}%\n"
-
-    if risk := fund_data.get("risk"):
-        md += f"\n**Risk Level:** {risk}/7\n"
-
-    if fee := fund_data.get("fee", {}).get("ongoingCharges"):
-        md += f"**Ongoing Charges:** {fee:.2f}%\n"
-
-    return md
-
-
-@mcp.resource("avanza://stock/{instrument_id}")
-async def get_stock_resource(instrument_id: str) -> str:
-    """Get stock information as a markdown resource.
-
-    URI: avanza://stock/{instrument_id}
-
-    Args:
-        instrument_id: Avanza stock ID
-
-    Returns:
-        Formatted markdown with stock information
-    """
-    async with AvanzaClient() as client:
-        service = MarketDataService(client)
-        stock_info = await service.get_stock_info(instrument_id)
-
-    stock_data = stock_info.model_dump(by_alias=True, exclude_none=True)
-    return format_stock_markdown(stock_data)
+    """Render reported values, including zero fees/returns, without assumed currency."""
+    development = fund_data.get("development") or {}
+    fee = fund_data.get("fee") or {}
+    lines = [f"# {fund_data.get('name', 'Unknown')}", ""]
+    fields = {
+        "ISIN": fund_data.get("isin"),
+        "NAV": fund_data.get("nav"),
+        "Currency": fund_data.get("currency"),
+        "NAV date": fund_data.get("navDate"),
+        "Portfolio date": fund_data.get("portfolioDate"),
+        "Last updated": fund_data.get("lastUpdated"),
+        "YTD (source value)": fund_data.get(
+            "developmentThisYear", development.get("thisYear")
+        ),
+        "1 year (source value)": fund_data.get(
+            "developmentOneYear", development.get("oneYear")
+        ),
+        "3 years (source value)": fund_data.get(
+            "developmentThreeYears", development.get("threeYears")
+        ),
+        "Risk level": fund_data.get("risk"),
+        "Ongoing charges (source value)": fee.get("ongoingCharges"),
+        "Product fee (source value)": fund_data.get("productFee"),
+        "Management fee (source value)": fund_data.get("managementFee"),
+    }
+    for label, value in fields.items():
+        lines.append(f"**{label}:** {value if value is not None else 'Unknown'}")
+    if fund_data.get("description"):
+        lines.extend(["", "## Description (Upstream Text)", fund_data["description"]])
+    lines.extend(
+        [
+            "",
+            "Latest available data, not guaranteed live. Return/fee scales and cumulative versus annualized conventions must be verified before comparison.",
+        ]
+    )
+    return "\n".join(lines)
 
 
-@mcp.resource("avanza://fund/{instrument_id}")
-async def get_fund_resource(instrument_id: str) -> str:
-    """Get fund information as a markdown resource.
+@mcp.resource("avanza://stock/{order_book_id}", mime_type="text/markdown")
+async def get_stock_resource(
+    order_book_id: OrderBookId, ctx: Context
+) -> ResourceResult:
+    """Stock summary by Avanza order-book ID, with source timestamps when supplied."""
+    stock = await MarketDataService(ctx.lifespan_context["client"]).get_stock_info(
+        order_book_id
+    )
+    return ResourceResult(
+        [
+            ResourceContent(
+                format_stock_markdown(stock.model_dump(by_alias=True)),
+                mime_type="text/markdown",
+            )
+        ]
+    )
 
-    URI: avanza://fund/{instrument_id}
 
-    Args:
-        instrument_id: Avanza fund ID
-
-    Returns:
-        Formatted markdown with fund information
-    """
-    async with AvanzaClient() as client:
-        service = MarketDataService(client)
-        fund_info = await service.get_fund_info(instrument_id)
-
-    fund_data = fund_info.model_dump(by_alias=True, exclude_none=True)
-    return format_fund_markdown(fund_data)
+@mcp.resource("avanza://fund/{order_book_id}", mime_type="text/markdown")
+async def get_fund_resource(order_book_id: OrderBookId, ctx: Context) -> ResourceResult:
+    """Fund summary by Avanza order-book ID, with NAV/portfolio dates when supplied."""
+    fund = await MarketDataService(ctx.lifespan_context["client"]).get_fund_info(
+        order_book_id
+    )
+    return ResourceResult(
+        [
+            ResourceContent(
+                format_fund_markdown(
+                    fund.model_dump(by_alias=True, exclude_unset=True)
+                ),
+                mime_type="text/markdown",
+            )
+        ]
+    )

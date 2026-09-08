@@ -3,7 +3,7 @@
 from pydantic import Field
 
 from .common import MODEL_CONFIG as MODEL_CONFIG, AvanzaModel
-from .filter import FilterResponse, SortBy
+from .filter import FilterResponse, PaginationRequest, SortBy
 from .stock import (
     HistoricalClosingPrices,
     Listing,
@@ -62,12 +62,10 @@ class ETFFilter(AvanzaModel):
     currencyCodes: list[str] = Field(default_factory=list)
 
 
-class ETFFilterRequest(AvanzaModel):
+class ETFFilterRequest(PaginationRequest):
     """Complete filter request for ETFs."""
 
     filter: ETFFilter
-    offset: int = 0
-    limit: int = 20
     sortBy: SortBy
 
 

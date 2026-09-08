@@ -1,159 +1,86 @@
-"""Futures and forwards MCP tools."""
+"""Futures and forwards selection and detail tools."""
 
-from typing import Literal
+from datetime import date
+from typing import Any, Literal
 
 from fastmcp import Context
 
 from .. import mcp
-from ..client import AvanzaClient
+from ..models.common import Limit, Offset, OrderBookId
 from ..models.filter import SortBy
 from ..models.future_forward import (
+    FutureForwardDetails,
+    FutureForwardInfo,
     FutureForwardMatrixFilter,
     FutureForwardMatrixRequest,
+    FutureForwardMatrixResponse,
 )
 from ..services import MarketDataService
-from ._logging import log_errors
+from ._helpers import READ_ONLY, api_errors
 
 
-@mcp.tool()
+@mcp.tool(annotations=READ_ONLY)
 async def list_futures_forwards(
     ctx: Context,
-    underlying_instruments: list[str] | None = None,
+    underlying_instruments: list[OrderBookId] | None = None,
     option_types: list[str] | None = None,
-    end_dates: list[str] | None = None,
-    offset: int = 0,
-    limit: int = 20,
+    end_dates: list[date] | None = None,
+    offset: Offset = 0,
+    limit: Limit = 20,
     sort_field: str = "strikePrice",
     sort_order: Literal["asc", "desc"] = "desc",
-) -> dict:
-    """List available futures and forward contracts.
+) -> FutureForwardMatrixResponse:
+    """Select futures/forwards with server-side pagination and ISO YYYY-MM-DD end dates.
 
-    Retrieves a matrix/list of available futures and forward contracts,
-    with optional filtering by underlying instruments, option types, and end dates.
-
-    Args:
-        ctx: MCP context for logging
-        underlying_instruments: Optional list of underlying instrument IDs
-        option_types: Optional list of option types to filter by
-        end_dates: Optional list of end dates (YYYY-MM-DD format)
-        offset: Number of results to skip (default: 0)
-        limit: Maximum number of results (default: 20)
-        sort_field: Field to sort by (default: "strikePrice")
-        sort_order: Sort order "asc" or "desc" (default: "desc")
-
-    Returns:
-        List of available futures and forwards
-
-    Examples:
-        List all futures/forwards:
-        >>> list_futures_forwards()
-
-        Filter by underlying instrument:
-        >>> list_futures_forwards(underlying_instruments=["19002"])
+    Use get_future_forward_filter_options for current filter vocabulary. The
+    matrix response retains flexible upstream fields, not an invented flat schema.
     """
-    ctx.info("Listing futures/forwards")
-
-    async with log_errors(ctx, "Failed to list futures/forwards"):
-        request = FutureForwardMatrixRequest(
-            filter=FutureForwardMatrixFilter(
-                underlyingInstruments=underlying_instruments or [],
-                optionTypes=option_types or [],
-                endDates=end_dates or [],
-                callIndicators=[],
-            ),
-            offset=offset,
-            limit=limit,
-            sortBy=SortBy(field=sort_field, order=sort_order),
-        )
-
-        async with AvanzaClient() as client:
-            service = MarketDataService(client)
-            result = await service.list_futures_forwards(request)
-
-        ctx.info("Retrieved futures/forwards list")
-        return result.model_dump(by_alias=True, exclude_none=True)
+    request = FutureForwardMatrixRequest(
+        filter=FutureForwardMatrixFilter(
+            underlyingInstruments=underlying_instruments or [],
+            optionTypes=option_types or [],
+            endDates=[value.isoformat() for value in end_dates or []],
+            callIndicators=[],
+        ),
+        offset=offset,
+        limit=limit,
+        sortBy=SortBy(field=sort_field, order=sort_order),
+    )
+    with api_errors():
+        return await MarketDataService(
+            ctx.lifespan_context["client"]
+        ).list_futures_forwards(request)
 
 
-@mcp.tool()
-async def get_future_forward_info(ctx: Context, instrument_id: str) -> dict:
-    """Get detailed information about a specific future or forward contract.
+@mcp.tool(annotations=READ_ONLY)
+async def get_future_forward_info(
+    ctx: Context, order_book_id: OrderBookId
+) -> FutureForwardInfo:
+    """Get contract identity and latest available market data, not guaranteed real-time."""
+    with api_errors():
+        return await MarketDataService(
+            ctx.lifespan_context["client"]
+        ).get_future_forward_info(order_book_id)
 
-    Provides comprehensive contract data including expiration date, underlying
-    instrument, contract specifications, and current pricing.
 
-    Args:
-        ctx: MCP context for logging
-        instrument_id: Avanza future/forward ID
+@mcp.tool(annotations=READ_ONLY)
+async def get_future_forward_details(
+    ctx: Context, order_book_id: OrderBookId
+) -> FutureForwardDetails:
+    """Get extended contract details beyond info; detail fields are intentionally flexible."""
+    with api_errors():
+        return await MarketDataService(
+            ctx.lifespan_context["client"]
+        ).get_future_forward_details(order_book_id)
 
-    Returns:
-        Detailed contract information
 
-    Examples:
-        Get contract info:
-        >>> get_future_forward_info(instrument_id="2224452")
+@mcp.tool(annotations=READ_ONLY)
+async def get_future_forward_filter_options(ctx: Context) -> dict[str, Any]:
+    """Get current upstream filter options before selecting futures/forwards.
+
+    Option names, values and nested detail fields are intentionally flexible.
     """
-    ctx.info(f"Fetching future/forward info for ID: {instrument_id}")
-
-    async with log_errors(ctx, "Failed to fetch future/forward info"):
-        async with AvanzaClient() as client:
-            service = MarketDataService(client)
-            info = await service.get_future_forward_info(instrument_id)
-
-        ctx.info(f"Retrieved info for: {info.name}")
-        return info.model_dump(by_alias=True, exclude_none=True)
-
-
-@mcp.tool()
-async def get_future_forward_details(ctx: Context, instrument_id: str) -> dict:
-    """Get extended details about a specific future/forward contract.
-
-    Provides additional detailed information beyond basic contract info.
-
-    Args:
-        ctx: MCP context for logging
-        instrument_id: Avanza future/forward ID
-
-    Returns:
-        Extended contract details
-
-    Examples:
-        Get detailed info:
-        >>> get_future_forward_details(instrument_id="2224452")
-    """
-    ctx.info(f"Fetching future/forward details for ID: {instrument_id}")
-
-    async with log_errors(ctx, "Failed to fetch future/forward details"):
-        async with AvanzaClient() as client:
-            service = MarketDataService(client)
-            details = await service.get_future_forward_details(instrument_id)
-
-        ctx.info("Retrieved future/forward details")
-        return details.model_dump(by_alias=True, exclude_none=True)
-
-
-@mcp.tool()
-async def get_future_forward_filter_options(ctx: Context) -> dict:
-    """Get available filter options for futures and forwards.
-
-    Returns the available filter options including underlying instruments,
-    option types, end dates, and other filterable parameters.
-
-    Args:
-        ctx: MCP context for logging
-
-    Returns:
-        Available filter options for futures/forwards
-
-    Examples:
-        Get filter options:
-        >>> get_future_forward_filter_options()
-    """
-    ctx.info("Fetching future/forward filter options")
-
-    async with log_errors(ctx, "Failed to fetch filter options"):
-        async with AvanzaClient() as client:
-            service = MarketDataService(client)
-            options = await service.get_future_forward_filter_options()
-
-        ctx.info("Retrieved filter options")
-        return options
+    with api_errors():
+        return await MarketDataService(
+            ctx.lifespan_context["client"]
+        ).get_future_forward_filter_options()

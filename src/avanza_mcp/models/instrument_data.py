@@ -1,20 +1,35 @@
-"""Additional instrument data models."""
+"""Observed owner and short-selling history envelopes, without inferred units."""
 
-from .common import MODEL_CONFIG as MODEL_CONFIG, AvanzaModel
+from pydantic import Field
+
+from .common import AvanzaModel
+
+
+class OwnersPoint(AvanzaModel):
+    timestamp: int
+    numberOfOwners: int = Field(ge=0)
+
+
+class OwnersHistorySummary(AvanzaModel):
+    oneYearChangePercent: float | None = None
+    oneYearChange: int | None = None
+    thisYearChangePercent: float | None = None
+    thisYearChange: int | None = None
 
 
 class NumberOfOwners(AvanzaModel):
-    """Number of owners for an instrument."""
+    """Required history array; an explicit empty array is valid."""
 
-    orderbookId: str | None = None
-    numberOfOwners: int | None = None
-    timestamp: int | None = None
+    ownersPoints: list[OwnersPoint]
+    historySummary: OwnersHistorySummary | None = None
+
+
+class ShortSellingPoint(AvanzaModel):
+    timestamp: int
+    ratio: float
 
 
 class ShortSellingData(AvanzaModel):
-    """Short selling data for an instrument."""
+    """Required history array; ratio is returned without conversion."""
 
-    orderbookId: str | None = None
-    shortSellingVolume: float | None = None
-    shortSellingPercentage: float | None = None
-    date: str | None = None
+    shortSellingHistory: list[ShortSellingPoint]

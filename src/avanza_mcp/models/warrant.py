@@ -2,8 +2,8 @@
 
 from pydantic import Field
 
-from .common import MODEL_CONFIG as MODEL_CONFIG, AvanzaModel
-from .filter import SortBy, FilterResponse, UnderlyingInstrument
+from .common import MODEL_CONFIG as MODEL_CONFIG, AvanzaModel, OrderBookId
+from .filter import SortBy, FilterResponse, UnderlyingInstrument, PaginationRequest
 from .stock import Listing, Quote, HistoricalClosingPrices
 
 
@@ -57,15 +57,13 @@ class WarrantFilter(AvanzaModel):
     directions: list[str] = Field(default_factory=list)
     subTypes: list[str] = Field(default_factory=list)
     issuers: list[str] = Field(default_factory=list)
-    underlyingInstruments: list[str] = Field(default_factory=list)
+    underlyingInstruments: list[OrderBookId] = Field(default_factory=list)
 
 
-class WarrantFilterRequest(AvanzaModel):
+class WarrantFilterRequest(PaginationRequest):
     """Complete filter request for warrants."""
 
     filter: WarrantFilter
-    offset: int = 0
-    limit: int = 20
     sortBy: SortBy
 
 

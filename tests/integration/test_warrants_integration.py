@@ -5,11 +5,13 @@ Run with: pytest tests/integration/test_warrants_integration.py -v -m integratio
 """
 
 import pytest
+from avanza_mcp.client.exceptions import AvanzaNotFoundError
 from avanza_mcp.models.filter import SortBy
 from avanza_mcp.models.warrant import WarrantFilter, WarrantFilterRequest
 
+pytestmark = pytest.mark.integration
 
-@pytest.mark.integration
+
 class TestWarrantEndpoints:
     """Test warrant endpoints with real API."""
 
@@ -51,5 +53,5 @@ class TestWarrantEndpoints:
         """Test getting warrant with invalid ID."""
         instrument_id = "999999999"
 
-        with pytest.raises(Exception):  # Should raise some kind of error
+        with pytest.raises(AvanzaNotFoundError):
             await service.get_warrant_info(instrument_id)

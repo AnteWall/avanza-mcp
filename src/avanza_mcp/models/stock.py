@@ -6,7 +6,7 @@ from .common import MODEL_CONFIG as MODEL_CONFIG, AvanzaModel
 
 
 class Quote(AvanzaModel):
-    """Real-time stock quote data."""
+    """Latest available stock quote data; inspect isRealTime and source timestamps."""
 
     buy: float | None = None
     sell: float | None = None

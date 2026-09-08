@@ -11,7 +11,7 @@ class AvanzaAPIError(AvanzaError):
     """API returned an error response."""
 
     def __init__(
-        self, status_code: int, message: str, response: dict | None = None
+        self, status_code: int, message: str, response: dict | list | None = None
     ) -> None:
         self.status_code = status_code
         self.message = message
@@ -34,11 +34,15 @@ class AvanzaNotFoundError(AvanzaError):
 class AvanzaRateLimitError(AvanzaError):
     """Rate limit exceeded."""
 
-    def __init__(self, retry_after: int | None = None, message: str | None = None) -> None:
+    def __init__(
+        self, retry_after: int | None = None, message: str | None = None
+    ) -> None:
         self.retry_after = retry_after
         msg = message or "Rate limit exceeded"
-        if retry_after and not message:
+        if retry_after is not None:
             msg += f", retry after {retry_after}s"
+        else:
+            msg += ", retry later"
         super().__init__(msg)
 
 
@@ -54,13 +58,8 @@ class AvanzaNetworkError(AvanzaError):
     pass
 
 
-class AvanzaRetryableError(AvanzaError):
+class AvanzaRetryableError(AvanzaAPIError):
     """Transient error that should trigger a retry.
 
     This is an internal exception used for retry logic.
     """
-
-    def __init__(self, status_code: int, message: str) -> None:
-        self.status_code = status_code
-        self.message = message
-        super().__init__(f"Retryable error {status_code}: {message}")

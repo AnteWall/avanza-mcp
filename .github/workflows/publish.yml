@@ -27,6 +27,16 @@ jobs:
       - name: Set up Python
         run: uv python install 3.12
 
+      - name: Install locked dependencies
+        run: uv sync --locked --all-extras
+
+      - name: Test release commit
+        run: uv run --locked pytest tests/unit -v
+
+      - name: Verify release tag
+        if: startsWith(github.ref, 'refs/tags/')
+        run: uv run --locked python -c "import os; from avanza_mcp import __version__; assert os.environ['GITHUB_REF_NAME'] == f'v{__version__}'"
+
       - name: Build package
         run: uv build
 

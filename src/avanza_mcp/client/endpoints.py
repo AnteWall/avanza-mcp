@@ -23,12 +23,16 @@ class PublicEndpoint(Enum):
     STOCK_CHART = "/_api/price-chart/stock/{id}"  # Requires timePeriod param
 
     # Market data - Charts (for traded products: certificates, warrants, ETFs)
-    MARKETMAKER_CHART = "/_api/price-chart/marketmaker/{id}"  # Requires timePeriod param
+    MARKETMAKER_CHART = (
+        "/_api/price-chart/marketmaker/{id}"  # Requires timePeriod param
+    )
 
     # Market data - Funds
     FUND_INFO = "/_api/fund-guide/guide/{id}"
     FUND_SUSTAINABILITY = "/_api/fund-reference/sustainability/{id}"
-    FUND_CHART = "/_api/fund-guide/chart/{id}/{time_period}"  # time_period: three_years, etc.
+    FUND_CHART = (
+        "/_api/fund-guide/chart/{id}/{time_period}"  # time_period: three_years, etc.
+    )
     FUND_CHART_PERIODS = "/_api/fund-guide/chart/timeperiods/{id}"
     FUND_DESCRIPTION = "/_api/fund-guide/description/{id}"
 
@@ -49,7 +53,9 @@ class PublicEndpoint(Enum):
 
     # Market data - Futures/Forwards
     FUTURE_FORWARD_MATRIX = "/_api/market-option-future-forward-list/matrix"
-    FUTURE_FORWARD_FILTER_OPTIONS = "/_api/market-option-future-forward-list/filter-options"
+    FUTURE_FORWARD_FILTER_OPTIONS = (
+        "/_api/market-option-future-forward-list/filter-options"
+    )
     FUTURE_FORWARD_INFO = "/_api/market-guide/futureforward/{id}"
     FUTURE_FORWARD_DETAILS = "/_api/market-guide/futureforward/{id}/details"
 
@@ -66,4 +72,8 @@ class PublicEndpoint(Enum):
         Returns:
             Formatted endpoint path
         """
+        if "id" in kwargs:
+            instrument_id = str(kwargs["id"])
+            if not instrument_id.isascii() or not instrument_id.isdecimal():
+                raise ValueError("Order-book id must contain only ASCII numeric digits")
         return self.value.format(**kwargs)

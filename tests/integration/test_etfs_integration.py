@@ -8,8 +8,9 @@ import pytest
 from avanza_mcp.models.etf import ETFFilter, ETFFilterRequest
 from avanza_mcp.models.filter import SortBy
 
+pytestmark = pytest.mark.integration
 
-@pytest.mark.integration
+
 class TestETFEndpoints:
     """Test ETF endpoints with real API."""
 

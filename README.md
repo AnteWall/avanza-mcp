@@ -1,199 +1,194 @@
 # Avanza MCP Server
+
 ![PyPI - Version](https://img.shields.io/pypi/v/avanza-mcp)
 [![CI](https://github.com/AnteWall/avanza-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/AnteWall/avanza-mcp/actions/workflows/ci.yml)
 
-A Model Context Protocol (MCP) server providing access to Avanza's public API. Get real-time Swedish stock quotes, fund information, charts, and comprehensive market data.
+Read-only access to Avanza's public market data from your MCP client. No Avanza account required.
 
-## 🚀 Features
-
-- Fetch instrument info (stocks, ETFs, funds)  
-- Real-time price quotes & order book depth  
-- Historical price charts & financial ratios  
-- Fund performance & ESG metrics  
-- Screening and comparison prompts
-
-## Installation for MCP Clients
-<details>
-<summary>Claude Desktop</summary>
-
-Add the following to your Claude Desktop MCP configuration file:
-
-```json
-{
-  "mcpServers": {
-    "avanza": {
-      "command": "uvx",
-      "args": ["avanza-mcp"]
-    }
-  }
-}
-```
-Restart Claude Desktop after saving the configuration.
-</details>
-
-
-<details>
-<summary>Cursor</summary>
-
-Cursor supports MCP servers via its settings.
-
-1. Open **Cursor Settings**
-2. Navigate to **AI → MCP Servers**
-3. Add a new MCP server with the following configuration:
-
-```json
-{
-  "name": "avanza",
-  "command": "uvx",
-  "args": ["avanza-mcp"]
-}
-```
-
-Once added, Cursor can query Avanza market data directly in chat and inline prompts.
-</details>
-
-<details>
-<summary>Visual Studio Code</summary>
-
-VS Code can use Avanza MCP Server through MCP-compatible extensions or custom AI tooling.
-
-1. Ensure you have **Python 3.10+** installed
-2. Ensure `uv` is installed: https://docs.astral.sh/uv/
-3. Add the following MCP server configuration to your MCP-enabled extension or tool:
-
-```json
-{
-  "mcpServers": {
-    "avanza": {
-      "command": "uvx",
-      "args": ["avanza-mcp"]
-    }
-  }
-}
-```
-
-Reload the VS Code window after updating the configuration.
-</details>
-
-
-> **Note:** MCP support depends on the specific extension you are using. Refer to your extension’s documentation for MCP setup details.
-
-  
-## ⚠️ Disclaimer
+## Disclaimer
 
 This is an unofficial API client/MCP Server. Not affiliated with Avanza Bank AB. The underlying API can be taken down or changed without warning at any point in time.
 
 The author of this software is not responsible for any indirect damages (foreseeable or unforeseeable), such as, if necessary, loss or alteration of or fraudulent access to data, accidental transmission of viruses or of any other harmful element, loss of profits or opportunities, the cost of replacement goods and services or the attitude and behavior of a third party.
 
-## 🛠️ MCP Tools
+## Features
 
-### Search & Discovery
-| Tool | Description |
-|------|-------------|
-| `search_instruments` | Find stocks, funds, ETFs by name or symbol |
-| `get_instrument_by_order_book_id` | Look up instruments by order book ID |
+- Stocks, funds, ETFs, certificates, warrants and futures/forwards.
+- Quotes, charts, financial ratios, dividends, order books and ownership data.
+- Fund performance, fees, holdings, sustainability and research prompts.
 
-### Stock Analysis
-| Tool | Description |
-|------|-------------|
-| `get_stock_info` | Complete stock information with fundamentals |
-| `get_stock_quote` | Real-time price and volume data |
-| `get_stock_analysis` | Financial ratios by year and quarter |
-| `get_stock_chart` | Historical OHLC price data |
-| `get_orderbook` | Order book depth with bid/ask levels |
-| `get_marketplace_info` | Trading hours and market status |
-| `get_recent_trades` | Latest executed trades |
-| `get_broker_trade_summary` | Broker buy/sell activity |
-| `get_dividends` | Historical dividend data |
-| `get_company_financials` | Annual and quarterly financial statements |
+## Setup
 
-### Fund Analysis
-| Tool | Description |
-|------|-------------|
-| `get_fund_info` | Complete fund information with performance |
-| `get_fund_sustainability` | ESG scores and sustainability metrics |
-| `get_fund_chart` | Historical performance charts |
-| `get_fund_chart_periods` | Performance across all time periods |
-| `get_fund_description` | Detailed fund description |
-| `get_fund_holdings` | Portfolio allocation (country, sector, top holdings) |
+Requires [uv](https://docs.astral.sh/uv/) and Python 3.12+. Local clients launch the server over stdio.
 
-### Certificates
-| Tool | Description |
-|------|-------------|
-| `filter_certificates` | Search and filter certificates with pagination |
-| `get_certificate_info` | Get detailed certificate information |
-| `get_certificate_details` | Get extended certificate details |
+<details>
+<summary>Claude Desktop and Cursor</summary>
 
-### Warrants
-| Tool | Description |
-|------|-------------|
-| `filter_warrants` | Search and filter warrants (turbos, minis) |
-| `get_warrant_info` | Get detailed warrant information |
-| `get_warrant_details` | Get extended warrant details |
+Both use this configuration:
 
-### ETFs
-| Tool | Description |
-|------|-------------|
-| `filter_etfs` | Search and filter exchange-traded funds |
-| `get_etf_info` | Get detailed ETF information |
-| `get_etf_details` | Get extended ETF details |
+```json
+{
+  "mcpServers": {
+    "avanza": {
+      "command": "uvx",
+      "args": ["avanza-mcp"]
+    }
+  }
+}
+```
 
-### Futures/Forwards
-| Tool | Description |
-|------|-------------|
-| `list_futures_forwards` | List available futures and forwards |
-| `get_future_forward_filter_options` | Get available filter options |
-| `get_future_forward_info` | Get contract information |
-| `get_future_forward_details` | Get extended contract details |
+- **Claude Desktop:** open Settings > Developer > Edit Config, merge the configuration, then fully restart Claude Desktop.
+- **Cursor:** add it to `.cursor/mcp.json` in your project, or `~/.cursor/mcp.json` globally. Enable the server in Cursor's MCP settings.
 
-### Additional Data
-| Tool | Description |
-|------|-------------|
-| `get_number_of_owners` | Get owner count for any instrument |
-| `get_short_selling` | Get short selling data for instruments |
-| `get_marketmaker_chart` | Get OHLC price chart data for traded products (certificates, warrants, ETFs) |
+</details>
 
-## 💡 MCP Prompts
+<details>
+<summary>Claude Code</summary>
 
-### Analysis Prompts
-- `analyze_stock` - Comprehensive stock analysis workflow
-- `compare_funds` - Multi-fund comparison template
-- `screen_dividend_stocks` - Dividend stock screening
+Run in your project:
 
-### Workflow Prompts (Teach AI Efficient Data Fetching)
-- `search_and_analyze_instrument` - Guide for finding and analyzing instruments efficiently
-- `filter_instruments_efficiently` - Guide for filtering large datasets with pagination
-- `compare_multiple_instruments` - Guide for comparing instruments efficiently
-- `explore_market_segment` - Guide for exploring market segments
-- `get_historical_analysis` - Guide for analyzing historical data
-- `screen_by_criteria` - Guide for screening by custom criteria
+```bash
+claude mcp add avanza -- uvx avanza-mcp
+```
 
-## 📚 MCP Resources
+Use `/mcp` in Claude Code to check the connection.
 
-### Documentation Resources
-- `avanza://docs/usage` - Comprehensive usage guide for AI assistants
-- `avanza://docs/quick-start` - Quick reference for common tasks
+</details>
 
-### Instrument Resources
-- `avanza://stock/{instrument_id}` - Get stock information as markdown
-- `avanza://fund/{instrument_id}` - Get fund information as markdown
+<details>
+<summary>Visual Studio Code</summary>
 
-### Usage in Claude Desktop
+Add to `.vscode/mcp.json`, or open **MCP: Open User Configuration** for global setup:
 
-Once configured, you can ask Claude:
+```json
+{
+  "servers": {
+    "avanza": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["avanza-mcp"]
+    }
+  }
+}
+```
 
-- "Search for Volvo stock on Avanza"
-- "Get the latest stock quote for Ericsson"
-- "Show me sustainable Swedish funds"
-- "What's in the order book for H&M?"
-- "Compare the performance of these three funds"
-- "What dividends has SEB paid over the years?"
-- "Show me the portfolio holdings for Avanza Global fund"
+Run **MCP: List Servers**, start `avanza`, and enable its tools in agent chat.
 
-## 📄 License
+</details>
 
-MIT License - See [LICENSE.md](LICENSE.md) for details.
+<details>
+<summary>OpenCode</summary>
 
-## 🤝 Contributing
+Add to your project's `opencode.json` or global `~/.config/opencode/opencode.json`:
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+```json
+{
+  "mcp": {
+    "avanza": {
+      "type": "local",
+      "command": ["uvx", "avanza-mcp"],
+      "enabled": true
+    }
+  }
+}
+```
+
+</details>
+
+<details>
+<summary>HTTP and ChatGPT</summary>
+
+From a source checkout:
+
+```bash
+uv sync
+uv run fastmcp run src/avanza_mcp/__init__.py:mcp --transport http
+```
+
+Connect HTTP clients to `http://localhost:8000/mcp`. ChatGPT requires a remotely reachable HTTPS deployment; add its `/mcp` URL using [ChatGPT's developer-mode setup](https://platform.openai.com/docs/guides/developer-mode).
+
+This project does not provide a hosted endpoint. Configure access controls before exposing your server publicly.
+
+</details>
+
+<details>
+<summary>Python</summary>
+
+Install with `uv add avanza-mcp`, then use FastMCP's in-process client:
+
+```python
+import asyncio
+from fastmcp import Client
+from avanza_mcp import mcp
+
+async def main():
+    async with Client(mcp) as client:
+        result = await client.call_tool(
+            "search_instruments", {"query": "Volvo", "instrument_type": "stock"}
+        )
+        print(result.structured_content)
+
+asyncio.run(main())
+```
+
+</details>
+
+If a desktop client cannot find `uvx`, use its absolute executable path. See [DEVELOPMENT.md](DEVELOPMENT.md) for running from source and tests.
+
+## Tools
+
+All 34 tools are read-only. Search first to obtain an `order_book_id`; history tools expose pagination. Data is latest available, not guaranteed live.
+
+| Category | Tool | Description |
+|----------|------|-------------|
+| Search | `search_instruments` | Find instruments by name, ticker or ISIN |
+| Search | `get_instrument_by_order_book_id` | Match an exact ID within search candidates |
+| Stocks | `get_stock_info` | Company, listing, fundamentals and quote |
+| Stocks | `get_stock_quote` | Latest price and trading volume |
+| Stocks | `get_stock_chart` | Historical OHLC price points |
+| Stocks | `get_stock_analysis` | A named financial-ratio history |
+| Stocks | `get_dividends` | A named dividend metric by financial year |
+| Stocks | `get_company_financials` | A named annual or quarterly financial metric |
+| Market | `get_orderbook` | Bid/ask depth |
+| Market | `get_marketplace_info` | Trading hours and market status |
+| Market | `get_recent_trades` | Recent trade snapshot |
+| Market | `get_broker_trade_summary` | Broker buy/sell activity |
+| Funds | `get_fund_info` | NAV, performance, fees and fund information |
+| Funds | `get_fund_sustainability` | ESG and sustainability metrics |
+| Funds | `get_fund_chart` | Historical fund chart points |
+| Funds | `get_fund_chart_periods` | Available performance periods |
+| Funds | `get_fund_description` | Investment strategy and category |
+| Funds | `get_fund_holdings` | Country, sector and top-holding allocations |
+| Certificates | `filter_certificates` | Filter and list certificates |
+| Certificates | `get_certificate_info` | Certificate information |
+| Certificates | `get_certificate_details` | Extended certificate details |
+| Warrants | `filter_warrants` | Filter and list warrants |
+| Warrants | `get_warrant_info` | Warrant information |
+| Warrants | `get_warrant_details` | Extended warrant details |
+| ETFs | `filter_etfs` | Filter and list ETFs |
+| ETFs | `get_etf_info` | ETF information |
+| ETFs | `get_etf_details` | Extended ETF details |
+| Futures/Forwards | `list_futures_forwards` | Filter and list contracts |
+| Futures/Forwards | `get_future_forward_filter_options` | Available contract filters |
+| Futures/Forwards | `get_future_forward_info` | Contract information |
+| Futures/Forwards | `get_future_forward_details` | Extended contract details |
+| Additional | `get_number_of_owners` | Avanza ownership history |
+| Additional | `get_short_selling` | Short-selling history |
+| Additional | `get_marketmaker_chart` | Traded-product OHLC and market-maker data |
+
+## Prompts
+
+- `analyze_stock(stock_symbol)` - Research a stock's fundamentals and price history.
+- `compare_funds(fund_names)` - Compare two or more supplied funds.
+- `screen_dividend_stocks(candidates, min_yield=3.0)` - Screen supplied stocks by dividend yield.
+
+## Resources
+
+- `avanza://docs/usage` - Tool usage guide.
+- `avanza://docs/quick-start` - Common workflows.
+- `avanza://stock/{order_book_id}` - Stock summary as Markdown.
+- `avanza://fund/{order_book_id}` - Fund summary as Markdown.
+
+## License
+
+[MIT](LICENSE.md)
