@@ -178,11 +178,6 @@ The author of this software is not responsible for any indirect damages (foresee
 - `avanza://stock/{instrument_id}` - Get stock information as markdown
 - `avanza://fund/{instrument_id}` - Get fund information as markdown
 
-
-
-
-> **Note:** FastMCP 3 is stable, so the `--prerelease=allow` flag is no longer required.
-
 ### Usage in Claude Desktop
 
 Once configured, you can ask Claude:

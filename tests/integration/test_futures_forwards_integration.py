@@ -43,11 +43,19 @@ class TestFutureForwardEndpoints:
     @pytest.mark.asyncio
     async def test_get_future_forward_info(self):
         """Test getting future/forward info."""
-        # Using future/forward ID from new.md
-        instrument_id = "2224452"
-
         async with AvanzaClient() as client:
             service = MarketDataService(client)
+            # Discover a current contract instead of pinning an expiring ID.
+            contracts = await service.list_futures_forwards(
+                FutureForwardMatrixRequest(
+                    filter=FutureForwardMatrixFilter(),
+                    limit=1,
+                    sortBy=SortBy(field="strikePrice", order="desc"),
+                )
+            )
+            futures = contracts.model_dump()["futureForwards"]
+            assert futures, "Expected at least one current future/forward"
+            instrument_id = futures[0]["orderbookId"]
             result = await service.get_future_forward_info(instrument_id)
 
         assert result.orderbookId == instrument_id

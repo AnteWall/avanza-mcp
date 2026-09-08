@@ -10,6 +10,8 @@ jobs:
   test:
     name: Test on Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
+    env:
+      UV_PYTHON: ${{ matrix.python-version }}
     strategy:
       matrix:
         python-version: ["3.12", "3.13"]
@@ -27,7 +29,10 @@ jobs:
           enable-cache: true
 
       - name: Install dependencies
-        run: uv sync --all-extras
+        run: uv sync --locked --all-extras
+
+      - name: Run unit tests
+        run: uv run --locked pytest tests/unit -v
 
       - name: Verify imports
         run: uv run python -c "from avanza_mcp import mcp; print('✓ Import successful')"

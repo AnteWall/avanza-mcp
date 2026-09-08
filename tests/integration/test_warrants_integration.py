@@ -38,11 +38,18 @@ class TestWarrantEndpoints:
     @pytest.mark.asyncio
     async def test_get_warrant_info(self):
         """Test getting warrant info."""
-        # Using warrant ID from new.md
-        instrument_id = "2267542"
-
         async with AvanzaClient() as client:
             service = MarketDataService(client)
+            # Discover a current warrant instead of pinning an expiring ID.
+            warrants = await service.filter_warrants(
+                WarrantFilterRequest(
+                    filter=WarrantFilter(),
+                    limit=1,
+                    sortBy=SortBy(field="name", order="asc"),
+                )
+            )
+            assert warrants.warrants, "Expected at least one current warrant"
+            instrument_id = warrants.warrants[0].orderbookId
             result = await service.get_warrant_info(instrument_id)
 
         assert result.orderbookId == instrument_id
