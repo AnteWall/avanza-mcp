@@ -1,40 +1,27 @@
 """Shared filter models for list/filter endpoints."""
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
 from typing import Literal
 
-
-# Standard model config for all models
-MODEL_CONFIG = ConfigDict(
-    populate_by_name=True,
-    str_strip_whitespace=True,
-    validate_assignment=True,
-    extra="allow",  # Don't fail on extra fields from API
-)
+from .common import MODEL_CONFIG as MODEL_CONFIG, AvanzaModel
 
 
-class SortBy(BaseModel):
+class SortBy(AvanzaModel):
     """Sort configuration for filter endpoints."""
-
-    model_config = MODEL_CONFIG
 
     field: str
     order: Literal["asc", "desc"]
 
 
-class PaginationRequest(BaseModel):
+class PaginationRequest(AvanzaModel):
     """Pagination parameters for filter endpoints."""
-
-    model_config = MODEL_CONFIG
 
     offset: int = Field(default=0, ge=0)
     limit: int = Field(default=20, ge=1, le=100)
 
 
-class UnderlyingInstrument(BaseModel):
+class UnderlyingInstrument(AvanzaModel):
     """Underlying instrument for derivatives."""
-
-    model_config = MODEL_CONFIG
 
     name: str | None = None
     orderbookId: str | None = None
@@ -42,10 +29,8 @@ class UnderlyingInstrument(BaseModel):
     countryCode: str | None = None
 
 
-class FilterResponse(BaseModel):
+class FilterResponse(AvanzaModel):
     """Base response for filter endpoints with pagination."""
-
-    model_config = MODEL_CONFIG
 
     pagination: dict | None = None
     totalNumberOfOrderbooks: int | None = None

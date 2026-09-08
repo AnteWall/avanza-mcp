@@ -7,6 +7,7 @@ from fastmcp import Context
 from .. import mcp
 from ..client import AvanzaClient
 from ..services import MarketDataService
+from ._logging import log_errors
 
 
 @mcp.tool()
@@ -44,7 +45,7 @@ async def get_fund_sustainability(
     """
     ctx.info(f"Fetching fund sustainability for ID: {instrument_id}")
 
-    try:
+    async with log_errors(ctx, "Failed to fetch fund sustainability"):
         async with AvanzaClient() as client:
             service = MarketDataService(client)
             sustainability = await service.get_fund_sustainability(instrument_id)
@@ -53,10 +54,6 @@ async def get_fund_sustainability(
             f"Retrieved sustainability data: ESG={sustainability.esgScore}, rating={sustainability.sustainabilityRating}"
         )
         return sustainability.model_dump(by_alias=True, exclude_none=True)
-
-    except Exception as e:
-        ctx.error(f"Failed to fetch fund sustainability: {str(e)}")
-        raise
 
 
 @mcp.tool()
@@ -107,7 +104,7 @@ async def get_fund_chart(
     """
     ctx.info(f"Fetching fund chart for ID: {instrument_id} (time_period={time_period})")
 
-    try:
+    async with log_errors(ctx, "Failed to fetch fund chart"):
         async with AvanzaClient() as client:
             service = MarketDataService(client)
             chart = await service.get_fund_chart(instrument_id, time_period)
@@ -115,10 +112,6 @@ async def get_fund_chart(
         data_points = len(chart.dataSerie)
         ctx.info(f"Retrieved chart with {data_points} data points")
         return chart.model_dump(by_alias=True, exclude_none=True)
-
-    except Exception as e:
-        ctx.error(f"Failed to fetch fund chart: {str(e)}")
-        raise
 
 
 @mcp.tool()
@@ -147,7 +140,7 @@ async def get_fund_chart_periods(
     """
     ctx.info(f"Fetching fund chart periods for ID: {instrument_id}")
 
-    try:
+    async with log_errors(ctx, "Failed to fetch fund chart periods"):
         async with AvanzaClient() as client:
             service = MarketDataService(client)
             periods = await service.get_fund_chart_periods(instrument_id)
@@ -156,10 +149,6 @@ async def get_fund_chart_periods(
         return {
             "periods": [period.model_dump(by_alias=True, exclude_none=True) for period in periods]
         }
-
-    except Exception as e:
-        ctx.error(f"Failed to fetch fund chart periods: {str(e)}")
-        raise
 
 
 @mcp.tool()
@@ -188,17 +177,13 @@ async def get_fund_description(
     """
     ctx.info(f"Fetching fund description for ID: {instrument_id}")
 
-    try:
+    async with log_errors(ctx, "Failed to fetch fund description"):
         async with AvanzaClient() as client:
             service = MarketDataService(client)
             description = await service.get_fund_description(instrument_id)
 
         ctx.info("Retrieved fund description")
         return description.model_dump(by_alias=True, exclude_none=True)
-
-    except Exception as e:
-        ctx.error(f"Failed to fetch fund description: {str(e)}")
-        raise
 
 
 @mcp.tool()
@@ -229,30 +214,19 @@ async def get_fund_holdings(
     """
     ctx.info(f"Fetching fund holdings for ID: {instrument_id}")
 
-    try:
+    async with log_errors(ctx, "Failed to fetch fund holdings"):
         async with AvanzaClient() as client:
             service = MarketDataService(client)
             fund_info = await service.get_fund_info(instrument_id)
 
-        holdings = {
-            "countryChartData": [
-                c.model_dump(by_alias=True, exclude_none=True)
-                for c in fund_info.country_chart_data
-            ],
-            "sectorChartData": [
-                s.model_dump(by_alias=True, exclude_none=True)
-                for s in fund_info.sector_chart_data
-            ],
-            "holdingChartData": [
-                h.model_dump(by_alias=True, exclude_none=True)
-                for h in fund_info.holding_chart_data
-            ],
-            "portfolioDate": (
-                fund_info.portfolio_date.isoformat()
-                if fund_info.portfolio_date
-                else None
-            ),
-        }
+        holdings = fund_info.model_dump(
+            include={"country_chart_data", "sector_chart_data", "holding_chart_data"},
+            by_alias=True,
+            exclude_none=True,
+        )
+        holdings["portfolioDate"] = (
+            fund_info.portfolio_date.isoformat() if fund_info.portfolio_date else None
+        )
 
         countries = len(holdings["countryChartData"])
         sectors = len(holdings["sectorChartData"])
@@ -261,7 +235,3 @@ async def get_fund_holdings(
             f"Retrieved holdings: {countries} countries, {sectors} sectors, {top_holdings} top holdings"
         )
         return holdings
-
-    except Exception as e:
-        ctx.error(f"Failed to fetch fund holdings: {str(e)}")
-        raise

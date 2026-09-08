@@ -7,6 +7,7 @@ from ..client import AvanzaClient
 from ..models.certificate import CertificateFilter, CertificateFilterRequest
 from ..models.filter import SortBy
 from ..services import MarketDataService
+from ._logging import log_errors
 
 
 @mcp.tool()
@@ -60,7 +61,7 @@ async def filter_certificates(
     """
     ctx.info(f"Filtering certificates: offset={offset}, limit={limit}")
 
-    try:
+    async with log_errors(ctx, "Failed to filter certificates"):
         filter_req = CertificateFilterRequest(
             filter=CertificateFilter(
                 directions=directions or [],
@@ -81,10 +82,6 @@ async def filter_certificates(
 
         ctx.info(f"Retrieved {len(result.certificates)} certificates")
         return result.model_dump(by_alias=True, exclude_none=True)
-
-    except Exception as e:
-        ctx.error(f"Failed to filter certificates: {str(e)}")
-        raise
 
 
 @mcp.tool()
@@ -111,17 +108,13 @@ async def get_certificate_info(ctx: Context, instrument_id: str) -> dict:
     """
     ctx.info(f"Fetching certificate info for ID: {instrument_id}")
 
-    try:
+    async with log_errors(ctx, "Failed to fetch certificate info"):
         async with AvanzaClient() as client:
             service = MarketDataService(client)
             certificate = await service.get_certificate_info(instrument_id)
 
         ctx.info(f"Retrieved info for: {certificate.name}")
         return certificate.model_dump(by_alias=True, exclude_none=True)
-
-    except Exception as e:
-        ctx.error(f"Failed to fetch certificate info: {str(e)}")
-        raise
 
 
 @mcp.tool()
@@ -143,14 +136,10 @@ async def get_certificate_details(ctx: Context, instrument_id: str) -> dict:
     """
     ctx.info(f"Fetching certificate details for ID: {instrument_id}")
 
-    try:
+    async with log_errors(ctx, "Failed to fetch certificate details"):
         async with AvanzaClient() as client:
             service = MarketDataService(client)
             details = await service.get_certificate_details(instrument_id)
 
         ctx.info("Retrieved certificate details")
         return details.model_dump(by_alias=True, exclude_none=True)
-
-    except Exception as e:
-        ctx.error(f"Failed to fetch certificate details: {str(e)}")
-        raise

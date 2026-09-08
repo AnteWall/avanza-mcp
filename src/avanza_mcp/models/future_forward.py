@@ -1,15 +1,12 @@
 """Future and forward contract models."""
 
-from pydantic import BaseModel
-
+from .common import MODEL_CONFIG as MODEL_CONFIG, AvanzaModel
 from .filter import SortBy
-from .stock import MODEL_CONFIG, HistoricalClosingPrices, Listing, Quote
+from .stock import HistoricalClosingPrices, Listing, Quote
 
 
-class FutureForwardInfo(BaseModel):
+class FutureForwardInfo(AvanzaModel):
     """Detailed future/forward information."""
-
-    model_config = MODEL_CONFIG
 
     orderbookId: str
     name: str
@@ -23,19 +20,15 @@ class FutureForwardInfo(BaseModel):
     underlying: dict | None = None
 
 
-class FutureForwardDetails(BaseModel):
+class FutureForwardDetails(AvanzaModel):
     """Detailed future/forward extended information."""
-
-    model_config = MODEL_CONFIG
 
     # Flexible structure to handle various response formats
     pass
 
 
-class FutureForwardMatrixFilter(BaseModel):
+class FutureForwardMatrixFilter(AvanzaModel):
     """Filter criteria for futures/forwards matrix."""
-
-    model_config = MODEL_CONFIG
 
     underlyingInstruments: list[str] = []
     optionTypes: list[str] = []
@@ -43,10 +36,8 @@ class FutureForwardMatrixFilter(BaseModel):
     callIndicators: list[str] = []
 
 
-class FutureForwardMatrixRequest(BaseModel):
+class FutureForwardMatrixRequest(AvanzaModel):
     """Request for futures/forwards matrix list."""
-
-    model_config = MODEL_CONFIG
 
     filter: FutureForwardMatrixFilter
     offset: int = 0
@@ -54,10 +45,8 @@ class FutureForwardMatrixRequest(BaseModel):
     sortBy: SortBy
 
 
-class FutureForwardMatrixResponse(BaseModel):
+class FutureForwardMatrixResponse(AvanzaModel):
     """Response from futures/forwards matrix endpoint."""
-
-    model_config = MODEL_CONFIG
 
     # Flexible structure to handle matrix response
     # The actual structure will be preserved via extra="allow"

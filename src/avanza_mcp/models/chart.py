@@ -1,14 +1,12 @@
 """Chart data models for price charts."""
 
-from pydantic import BaseModel, Field
+from pydantic import Field
 
-from .stock import MODEL_CONFIG
+from .common import MODEL_CONFIG as MODEL_CONFIG, AvanzaModel
 
 
-class OHLCDataPoint(BaseModel):
+class OHLCDataPoint(AvanzaModel):
     """OHLC (Open-High-Low-Close) candlestick data point."""
-
-    model_config = MODEL_CONFIG
 
     timestamp: int
     open: float
@@ -18,30 +16,24 @@ class OHLCDataPoint(BaseModel):
     totalVolumeTraded: int
 
 
-class ChartResolution(BaseModel):
+class ChartResolution(AvanzaModel):
     """Chart resolution metadata."""
-
-    model_config = MODEL_CONFIG
 
     chartResolution: str
     availableResolutions: list[str]
 
 
-class ChartMetadata(BaseModel):
+class ChartMetadata(AvanzaModel):
     """Chart metadata."""
-
-    model_config = MODEL_CONFIG
 
     resolution: ChartResolution
 
 
-class ChartData(BaseModel):
+class ChartData(AvanzaModel):
     """Price chart data response.
 
     Used for both stock charts and marketmaker charts.
     """
-
-    model_config = MODEL_CONFIG
 
     ohlc: list[OHLCDataPoint]
     metadata: ChartMetadata

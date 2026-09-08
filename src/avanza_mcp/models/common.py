@@ -2,6 +2,22 @@
 
 from enum import Enum
 
+from pydantic import BaseModel, ConfigDict
+
+
+MODEL_CONFIG = ConfigDict(
+    populate_by_name=True,
+    str_strip_whitespace=True,
+    validate_assignment=True,
+    extra="allow",  # Don't fail on extra fields from API
+)
+
+
+class AvanzaModel(BaseModel):
+    """Shared validation configuration for Avanza API models."""
+
+    model_config = MODEL_CONFIG
+
 
 class InstrumentType(str, Enum):
     """Types of financial instruments available on Avanza."""

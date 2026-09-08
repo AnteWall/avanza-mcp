@@ -12,6 +12,7 @@ from ..models.future_forward import (
     FutureForwardMatrixRequest,
 )
 from ..services import MarketDataService
+from ._logging import log_errors
 
 
 @mcp.tool()
@@ -52,7 +53,7 @@ async def list_futures_forwards(
     """
     ctx.info("Listing futures/forwards")
 
-    try:
+    async with log_errors(ctx, "Failed to list futures/forwards"):
         request = FutureForwardMatrixRequest(
             filter=FutureForwardMatrixFilter(
                 underlyingInstruments=underlying_instruments or [],
@@ -71,10 +72,6 @@ async def list_futures_forwards(
 
         ctx.info("Retrieved futures/forwards list")
         return result.model_dump(by_alias=True, exclude_none=True)
-
-    except Exception as e:
-        ctx.error(f"Failed to list futures/forwards: {str(e)}")
-        raise
 
 
 @mcp.tool()
@@ -97,17 +94,13 @@ async def get_future_forward_info(ctx: Context, instrument_id: str) -> dict:
     """
     ctx.info(f"Fetching future/forward info for ID: {instrument_id}")
 
-    try:
+    async with log_errors(ctx, "Failed to fetch future/forward info"):
         async with AvanzaClient() as client:
             service = MarketDataService(client)
             info = await service.get_future_forward_info(instrument_id)
 
         ctx.info(f"Retrieved info for: {info.name}")
         return info.model_dump(by_alias=True, exclude_none=True)
-
-    except Exception as e:
-        ctx.error(f"Failed to fetch future/forward info: {str(e)}")
-        raise
 
 
 @mcp.tool()
@@ -129,17 +122,13 @@ async def get_future_forward_details(ctx: Context, instrument_id: str) -> dict:
     """
     ctx.info(f"Fetching future/forward details for ID: {instrument_id}")
 
-    try:
+    async with log_errors(ctx, "Failed to fetch future/forward details"):
         async with AvanzaClient() as client:
             service = MarketDataService(client)
             details = await service.get_future_forward_details(instrument_id)
 
         ctx.info("Retrieved future/forward details")
         return details.model_dump(by_alias=True, exclude_none=True)
-
-    except Exception as e:
-        ctx.error(f"Failed to fetch future/forward details: {str(e)}")
-        raise
 
 
 @mcp.tool()
@@ -161,14 +150,10 @@ async def get_future_forward_filter_options(ctx: Context) -> dict:
     """
     ctx.info("Fetching future/forward filter options")
 
-    try:
+    async with log_errors(ctx, "Failed to fetch filter options"):
         async with AvanzaClient() as client:
             service = MarketDataService(client)
             options = await service.get_future_forward_filter_options()
 
         ctx.info("Retrieved filter options")
         return options
-
-    except Exception as e:
-        ctx.error(f"Failed to fetch filter options: {str(e)}")
-        raise

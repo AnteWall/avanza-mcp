@@ -7,6 +7,7 @@ from fastmcp import Context
 from .. import mcp
 from ..client import AvanzaClient
 from ..services import SearchService
+from ._logging import log_errors
 
 
 @mcp.tool()
@@ -57,7 +58,7 @@ async def search_instruments(
     """
     ctx.info(f"Searching for '{query}' (type: {instrument_type}, limit: {limit})")
 
-    try:
+    async with log_errors(ctx, "Search failed"):
         # Validate limit
         limit = max(1, min(limit, 50))
 
@@ -73,10 +74,6 @@ async def search_instruments(
 
         # Return the full response as dict
         return response.model_dump(by_alias=True)
-
-    except Exception as e:
-        ctx.error(f"Search failed: {str(e)}")
-        raise
 
 
 @mcp.tool()
@@ -101,7 +98,7 @@ async def get_instrument_by_order_book_id(
     """
     ctx.info(f"Looking up instrument with order book ID: {order_book_id}")
 
-    try:
+    async with log_errors(ctx, "Lookup failed"):
         async with AvanzaClient() as client:
             service = SearchService(client)
             response = await service.search(query=order_book_id, limit=1)
@@ -113,7 +110,3 @@ async def get_instrument_by_order_book_id(
         else:
             ctx.info("No instrument found with that order book ID")
             return None
-
-    except Exception as e:
-        ctx.error(f"Lookup failed: {str(e)}")
-        raise

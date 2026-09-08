@@ -5,31 +5,12 @@ from avanza_mcp.models.certificate import (
     CertificateFilterRequest,
     CertificateFilterResponse,
     CertificateInfo,
-    CertificateListItem,
 )
 from avanza_mcp.models.filter import SortBy
 
 
 class TestCertificateModels:
     """Test certificate models."""
-
-    def test_certificate_list_item(self):
-        """Test CertificateListItem creation."""
-        item = CertificateListItem(
-            orderbookId="1756318",
-            countryCode="DE",
-            name="Test Certificate",
-            direction="long",
-            marketplaceCode="XETR",
-            issuer="Valour",
-            hasPosition=False,
-            leverage=1.0,
-            buyPrice=0.33,
-            sellPrice=0.34,
-        )
-        assert item.orderbookId == "1756318"
-        assert item.direction == "long"
-        assert item.leverage == 1.0
 
     def test_certificate_filter_creation(self):
         """Test creating certificate filter."""
@@ -75,6 +56,8 @@ class TestCertificateModels:
         response = CertificateFilterResponse.model_validate(data)
         assert len(response.certificates) == 1
         assert response.certificates[0].orderbookId == "1756318"
+        assert response.certificates[0].direction == "long"
+        assert response.certificates[0].leverage == 1.0
 
     def test_certificate_info_validation(self):
         """Test certificate info model validation."""

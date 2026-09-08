@@ -1,21 +1,12 @@
 """Stock-related Pydantic models matching Avanza API."""
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
+
+from .common import MODEL_CONFIG as MODEL_CONFIG, AvanzaModel
 
 
-# Standard model config for all models
-MODEL_CONFIG = ConfigDict(
-    populate_by_name=True,
-    str_strip_whitespace=True,
-    validate_assignment=True,
-    extra="allow",  # Don't fail on extra fields from API
-)
-
-
-class Quote(BaseModel):
+class Quote(AvanzaModel):
     """Real-time stock quote data."""
-
-    model_config = MODEL_CONFIG
 
     buy: float | None = None
     sell: float | None = None
@@ -33,10 +24,8 @@ class Quote(BaseModel):
     isRealTime: bool | None = None
 
 
-class Listing(BaseModel):
+class Listing(AvanzaModel):
     """Stock listing information."""
-
-    model_config = MODEL_CONFIG
 
     shortName: str
     tickerSymbol: str | None = None
@@ -48,10 +37,8 @@ class Listing(BaseModel):
     marketTradesAvailable: bool | None = None
 
 
-class MarketPlace(BaseModel):
+class MarketPlace(AvanzaModel):
     """Market place information."""
-
-    model_config = MODEL_CONFIG
 
     marketOpen: bool
     tradingTime: str | None = None
@@ -60,37 +47,29 @@ class MarketPlace(BaseModel):
     name: str | None = None
 
 
-class ShareInfo(BaseModel):
+class ShareInfo(AvanzaModel):
     """Share value information."""
-
-    model_config = MODEL_CONFIG
 
     value: float
     currency: str
 
 
-class ReportInfo(BaseModel):
+class ReportInfo(AvanzaModel):
     """Company report information."""
-
-    model_config = MODEL_CONFIG
 
     date: str
     reportType: str
 
 
-class Sector(BaseModel):
+class Sector(AvanzaModel):
     """Stock sector classification."""
-
-    model_config = MODEL_CONFIG
 
     sectorId: str
     sectorName: str
 
 
-class KeyIndicators(BaseModel):
+class KeyIndicators(AvanzaModel):
     """Stock key financial indicators."""
-
-    model_config = MODEL_CONFIG
 
     numberOfOwners: int | None = None
     reportDate: str | None = None
@@ -115,10 +94,8 @@ class KeyIndicators(BaseModel):
     directYield: float | None = None
 
 
-class HistoricalClosingPrices(BaseModel):
+class HistoricalClosingPrices(AvanzaModel):
     """Historical closing prices."""
-
-    model_config = MODEL_CONFIG
 
     oneDay: float | None = None
     oneWeek: float | None = None
@@ -131,10 +108,8 @@ class HistoricalClosingPrices(BaseModel):
     start: float | None = None
 
 
-class Company(BaseModel):
+class Company(AvanzaModel):
     """Company information."""
-
-    model_config = MODEL_CONFIG
 
     name: str | None = None
     description: str | None = None
@@ -144,10 +119,8 @@ class Company(BaseModel):
     marketCapital: ShareInfo | None = None
 
 
-class StockInfo(BaseModel):
+class StockInfo(AvanzaModel):
     """Complete stock information from Avanza API."""
-
-    model_config = MODEL_CONFIG
 
     orderbookId: str
     name: str
@@ -169,10 +142,8 @@ class StockInfo(BaseModel):
 # === Models for additional endpoints ===
 
 
-class OHLCDataPoint(BaseModel):
+class OHLCDataPoint(AvanzaModel):
     """OHLC (Open, High, Low, Close) data point for price charts."""
-
-    model_config = MODEL_CONFIG
 
     timestamp: int
     open: float
@@ -182,18 +153,14 @@ class OHLCDataPoint(BaseModel):
     totalVolumeTraded: int
 
 
-class ChartMetadata(BaseModel):
+class ChartMetadata(AvanzaModel):
     """Metadata for price chart responses."""
-
-    model_config = MODEL_CONFIG
 
     resolution: str | dict | None = None  # Can be string or dict
 
 
-class StockChart(BaseModel):
+class StockChart(AvanzaModel):
     """Stock price chart data with OHLC values."""
-
-    model_config = MODEL_CONFIG
 
     ohlc: list[OHLCDataPoint]
     metadata: ChartMetadata | None = None
@@ -202,10 +169,8 @@ class StockChart(BaseModel):
     previousClosingPrice: float | None = None
 
 
-class MarketplaceInfo(BaseModel):
+class MarketplaceInfo(AvanzaModel):
     """Marketplace status and trading hours."""
-
-    model_config = MODEL_CONFIG
 
     marketOpen: bool
     timeLeftMs: int | None = None
@@ -214,10 +179,8 @@ class MarketplaceInfo(BaseModel):
     normalClosingTime: str | None = None
 
 
-class BrokerTradeSummary(BaseModel):
+class BrokerTradeSummary(AvanzaModel):
     """Summary of broker trades for a stock."""
-
-    model_config = MODEL_CONFIG
 
     brokerCode: str
     sellVolume: int
@@ -226,10 +189,8 @@ class BrokerTradeSummary(BaseModel):
     brokerName: str
 
 
-class Trade(BaseModel):
+class Trade(AvanzaModel):
     """Individual trade information."""
-
-    model_config = MODEL_CONFIG
 
     buyer: str
     seller: str
@@ -240,29 +201,23 @@ class Trade(BaseModel):
     cancelled: bool
 
 
-class OrderSide(BaseModel):
+class OrderSide(AvanzaModel):
     """Buy or sell side of an order."""
-
-    model_config = MODEL_CONFIG
 
     price: float
     volume: int
     priceString: str
 
 
-class OrderLevel(BaseModel):
+class OrderLevel(AvanzaModel):
     """Single level in the order book depth."""
-
-    model_config = MODEL_CONFIG
 
     buySide: OrderSide | None = None
     sellSide: OrderSide | None = None
 
 
-class OrderDepth(BaseModel):
+class OrderDepth(AvanzaModel):
     """Order book depth showing buy and sell orders."""
-
-    model_config = MODEL_CONFIG
 
     receivedTime: int | None = None  # May be None when market is closed
     levels: list[OrderLevel] = []  # Empty list when no order book data available

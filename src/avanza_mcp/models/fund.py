@@ -3,22 +3,13 @@
 from datetime import date, datetime
 from decimal import Decimal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
+
+from .common import MODEL_CONFIG as MODEL_CONFIG, AvanzaModel
 
 
-# Standard model config for all models
-MODEL_CONFIG = ConfigDict(
-    populate_by_name=True,
-    str_strip_whitespace=True,
-    validate_assignment=True,
-    extra="allow",  # Don't fail on extra fields from API
-)
-
-
-class FundPerformance(BaseModel):
+class FundPerformance(AvanzaModel):
     """Fund performance metrics over various time periods."""
-
-    model_config = MODEL_CONFIG
 
     today: Decimal | None = Field(None, description="Performance today (%)")
     one_week: Decimal | None = Field(None, alias="oneWeek", description="1 week return (%)")
@@ -43,10 +34,8 @@ class FundPerformance(BaseModel):
     )
 
 
-class FundFee(BaseModel):
+class FundFee(AvanzaModel):
     """Fund fee information."""
-
-    model_config = MODEL_CONFIG
 
     ongoing_charges: Decimal | None = Field(
         None, alias="ongoingCharges", description="Ongoing charges (%)"
@@ -57,19 +46,15 @@ class FundFee(BaseModel):
     exit_charge: Decimal | None = Field(None, alias="exitCharge", description="Exit fee (%)")
 
 
-class ChartDataPoint(BaseModel):
+class ChartDataPoint(AvanzaModel):
     """Data point for portfolio allocation charts."""
-
-    model_config = MODEL_CONFIG
 
     name: str | None = None
     y: float | None = None
 
 
-class FundInfo(BaseModel):
+class FundInfo(AvanzaModel):
     """Detailed fund information."""
-
-    model_config = MODEL_CONFIG
 
     # Basic info
     id: str | None = Field(None, description="Fund ID")
@@ -153,10 +138,8 @@ class FundInfo(BaseModel):
 # === Models for additional fund endpoints ===
 
 
-class ProductInvolvement(BaseModel):
+class ProductInvolvement(AvanzaModel):
     """Product involvement information for sustainability metrics."""
-
-    model_config = MODEL_CONFIG
 
     product: str
     productDescription: str
@@ -164,20 +147,16 @@ class ProductInvolvement(BaseModel):
     name: str
 
 
-class SustainabilityGoal(BaseModel):
+class SustainabilityGoal(AvanzaModel):
     """UN Sustainable Development Goal information."""
-
-    model_config = MODEL_CONFIG
 
     goalId: int | None = None
     goalName: str | None = None
     goalDescription: str | None = None
 
 
-class FundSustainability(BaseModel):
+class FundSustainability(AvanzaModel):
     """Fund sustainability and ESG metrics."""
-
-    model_config = MODEL_CONFIG
 
     lowCarbon: bool | None = None
     esgScore: float | None = None
@@ -205,19 +184,15 @@ class FundSustainability(BaseModel):
     sustainabilityDevelopmentGoals: list[SustainabilityGoal] = []
 
 
-class FundChartDataPoint(BaseModel):
+class FundChartDataPoint(AvanzaModel):
     """Single data point in fund chart."""
-
-    model_config = MODEL_CONFIG
 
     x: int  # timestamp
     y: float  # value (typically percentage)
 
 
-class FundChart(BaseModel):
+class FundChart(AvanzaModel):
     """Fund chart data with historical performance."""
-
-    model_config = MODEL_CONFIG
 
     id: str
     dataSerie: list[FundChartDataPoint]
@@ -226,20 +201,16 @@ class FundChart(BaseModel):
     toDate: str | None = None
 
 
-class FundChartPeriod(BaseModel):
+class FundChartPeriod(AvanzaModel):
     """Fund performance for a specific time period."""
-
-    model_config = MODEL_CONFIG
 
     timePeriod: str
     change: float
     startDate: str
 
 
-class FundDescription(BaseModel):
+class FundDescription(AvanzaModel):
     """Fund description and category information."""
-
-    model_config = MODEL_CONFIG
 
     response: str
     heading: str

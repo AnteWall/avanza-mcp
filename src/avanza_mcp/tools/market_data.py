@@ -5,6 +5,7 @@ from fastmcp import Context
 from .. import mcp
 from ..client import AvanzaClient
 from ..services import MarketDataService
+from ._logging import log_errors
 
 
 @mcp.tool()
@@ -37,17 +38,13 @@ async def get_stock_info(
     """
     ctx.info(f"Fetching stock info for ID: {instrument_id}")
 
-    try:
+    async with log_errors(ctx, "Failed to fetch stock info"):
         async with AvanzaClient() as client:
             service = MarketDataService(client)
             stock_info = await service.get_stock_info(instrument_id)
 
         ctx.info(f"Retrieved info for: {stock_info.name}")
         return stock_info.model_dump(by_alias=True, exclude_none=True)
-
-    except Exception as e:
-        ctx.error(f"Failed to fetch stock info: {str(e)}")
-        raise
 
 
 @mcp.tool()
@@ -80,17 +77,13 @@ async def get_fund_info(
     """
     ctx.info(f"Fetching fund info for ID: {instrument_id}")
 
-    try:
+    async with log_errors(ctx, "Failed to fetch fund info"):
         async with AvanzaClient() as client:
             service = MarketDataService(client)
             fund_info = await service.get_fund_info(instrument_id)
 
         ctx.info(f"Retrieved info for: {fund_info.name}")
         return fund_info.model_dump(by_alias=True, exclude_none=True)
-
-    except Exception as e:
-        ctx.error(f"Failed to fetch fund info: {str(e)}")
-        raise
 
 
 @mcp.tool()
@@ -133,7 +126,7 @@ async def get_stock_chart(
     """
     ctx.info(f"Fetching chart data for ID: {instrument_id} (time_period={time_period})")
 
-    try:
+    async with log_errors(ctx, "Failed to fetch chart data"):
         async with AvanzaClient() as client:
             service = MarketDataService(client)
             chart_data = await service.get_chart_data(
@@ -144,10 +137,6 @@ async def get_stock_chart(
         data_points = len(chart_data.ohlc)
         ctx.info(f"Retrieved {data_points} OHLC data points")
         return chart_data.model_dump(by_alias=True, exclude_none=True)
-
-    except Exception as e:
-        ctx.error(f"Failed to fetch chart data: {str(e)}")
-        raise
 
 
 @mcp.tool()
@@ -177,7 +166,7 @@ async def get_orderbook(
     """
     ctx.info(f"Fetching order book for ID: {instrument_id}")
 
-    try:
+    async with log_errors(ctx, "Failed to fetch order book"):
         async with AvanzaClient() as client:
             service = MarketDataService(client)
             orderbook = await service.get_order_depth(instrument_id)
@@ -185,10 +174,6 @@ async def get_orderbook(
         levels_count = len(orderbook.levels)
         ctx.info(f"Retrieved order book with {levels_count} levels")
         return orderbook.model_dump(by_alias=True, exclude_none=True)
-
-    except Exception as e:
-        ctx.error(f"Failed to fetch order book: {str(e)}")
-        raise
 
 
 @mcp.tool()
@@ -226,17 +211,13 @@ async def get_stock_analysis(
     """
     ctx.info(f"Fetching stock analysis for ID: {instrument_id}")
 
-    try:
+    async with log_errors(ctx, "Failed to fetch stock analysis"):
         async with AvanzaClient() as client:
             service = MarketDataService(client)
             analysis = await service.get_stock_analysis(instrument_id)
 
         ctx.info(f"Retrieved analysis data")
         return analysis
-
-    except Exception as e:
-        ctx.error(f"Failed to fetch stock analysis: {str(e)}")
-        raise
 
 
 @mcp.tool()
@@ -273,17 +254,13 @@ async def get_stock_quote(
     """
     ctx.info(f"Fetching stock quote for ID: {instrument_id}")
 
-    try:
+    async with log_errors(ctx, "Failed to fetch stock quote"):
         async with AvanzaClient() as client:
             service = MarketDataService(client)
             quote = await service.get_stock_quote(instrument_id)
 
         ctx.info(f"Retrieved quote: last={quote.last}, change={quote.changePercent}%")
         return quote.model_dump(by_alias=True, exclude_none=True)
-
-    except Exception as e:
-        ctx.error(f"Failed to fetch stock quote: {str(e)}")
-        raise
 
 
 @mcp.tool()
@@ -314,7 +291,7 @@ async def get_marketplace_info(
     """
     ctx.info(f"Fetching marketplace info for ID: {instrument_id}")
 
-    try:
+    async with log_errors(ctx, "Failed to fetch marketplace info"):
         async with AvanzaClient() as client:
             service = MarketDataService(client)
             marketplace = await service.get_marketplace_info(instrument_id)
@@ -322,10 +299,6 @@ async def get_marketplace_info(
         status = "open" if marketplace.marketOpen else "closed"
         ctx.info(f"Market is {status}")
         return marketplace.model_dump(by_alias=True, exclude_none=True)
-
-    except Exception as e:
-        ctx.error(f"Failed to fetch marketplace info: {str(e)}")
-        raise
 
 
 @mcp.tool()
@@ -357,7 +330,7 @@ async def get_recent_trades(
     """
     ctx.info(f"Fetching recent trades for ID: {instrument_id}")
 
-    try:
+    async with log_errors(ctx, "Failed to fetch recent trades"):
         async with AvanzaClient() as client:
             service = MarketDataService(client)
             trades = await service.get_trades(instrument_id)
@@ -366,10 +339,6 @@ async def get_recent_trades(
         return {
             "trades": [trade.model_dump(by_alias=True, exclude_none=True) for trade in trades]
         }
-
-    except Exception as e:
-        ctx.error(f"Failed to fetch recent trades: {str(e)}")
-        raise
 
 
 @mcp.tool()
@@ -399,7 +368,7 @@ async def get_broker_trade_summary(
     """
     ctx.info(f"Fetching broker trade summary for ID: {instrument_id}")
 
-    try:
+    async with log_errors(ctx, "Failed to fetch broker trade summary"):
         async with AvanzaClient() as client:
             service = MarketDataService(client)
             summaries = await service.get_broker_trades(instrument_id)
@@ -410,10 +379,6 @@ async def get_broker_trade_summary(
                 summary.model_dump(by_alias=True, exclude_none=True) for summary in summaries
             ]
         }
-
-    except Exception as e:
-        ctx.error(f"Failed to fetch broker trade summary: {str(e)}")
-        raise
 
 
 @mcp.tool()
@@ -446,7 +411,7 @@ async def get_dividends(
     """
     ctx.info(f"Fetching dividend data for ID: {instrument_id}")
 
-    try:
+    async with log_errors(ctx, "Failed to fetch dividend data"):
         async with AvanzaClient() as client:
             service = MarketDataService(client)
             dividends = await service.get_dividends(instrument_id)
@@ -454,10 +419,6 @@ async def get_dividends(
         years = len(dividends.get("dividendsByYear", []))
         ctx.info(f"Retrieved {years} years of dividend data")
         return dividends
-
-    except Exception as e:
-        ctx.error(f"Failed to fetch dividend data: {str(e)}")
-        raise
 
 
 @mcp.tool()
@@ -493,7 +454,7 @@ async def get_company_financials(
     """
     ctx.info(f"Fetching company financials for ID: {instrument_id}")
 
-    try:
+    async with log_errors(ctx, "Failed to fetch company financials"):
         async with AvanzaClient() as client:
             service = MarketDataService(client)
             financials = await service.get_company_financials(instrument_id)
@@ -502,7 +463,3 @@ async def get_company_financials(
         quarters = len(financials.get("companyFinancialsByQuarter", []))
         ctx.info(f"Retrieved financials: {years} years, {quarters} quarters")
         return financials
-
-    except Exception as e:
-        ctx.error(f"Failed to fetch company financials: {str(e)}")
-        raise

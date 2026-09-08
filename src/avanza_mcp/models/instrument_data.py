@@ -1,24 +1,18 @@
 """Additional instrument data models."""
 
-from pydantic import BaseModel
-
-from .stock import MODEL_CONFIG
+from .common import MODEL_CONFIG as MODEL_CONFIG, AvanzaModel
 
 
-class NumberOfOwners(BaseModel):
+class NumberOfOwners(AvanzaModel):
     """Number of owners for an instrument."""
-
-    model_config = MODEL_CONFIG
 
     orderbookId: str | None = None
     numberOfOwners: int | None = None
     timestamp: int | None = None
 
 
-class ShortSellingData(BaseModel):
+class ShortSellingData(AvanzaModel):
     """Short selling data for an instrument."""
-
-    model_config = MODEL_CONFIG
 
     orderbookId: str | None = None
     shortSellingVolume: float | None = None

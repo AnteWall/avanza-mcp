@@ -70,8 +70,6 @@ class AvanzaClient:
         Returns:
             Self for context manager usage
         """
-        headers = self._build_headers()
-
         # Configure timeouts with separate connect and read values
         timeout = httpx.Timeout(
             self._timeout,
@@ -86,7 +84,10 @@ class AvanzaClient:
 
         self._client = httpx.AsyncClient(
             base_url=self._base_url,
-            headers=headers,
+            headers={
+                "User-Agent": f"avanza-mcp/{__version__}",
+                "Accept": "application/json",
+            },
             timeout=timeout,
             limits=limits,
             follow_redirects=True,
@@ -109,25 +110,6 @@ class AvanzaClient:
         """
         if self._client:
             await self._client.aclose()
-
-    def _build_headers(self) -> dict[str, str]:
-        """Build request headers.
-
-        Returns:
-            Dictionary of HTTP headers
-        """
-        return {
-            "User-Agent": f"avanza-mcp/{__version__}",
-            "Accept": "application/json",
-        }
-
-    def _generate_request_id(self) -> str:
-        """Generate a unique request ID for debugging.
-
-        Returns:
-            Short unique identifier string
-        """
-        return str(uuid.uuid4())[:8]
 
     def _handle_error(
         self,
@@ -188,19 +170,6 @@ class AvanzaClient:
                 response_dict = None
             raise AvanzaAPIError(status_code, f"{context}: {message}", response_dict)
 
-    def _is_retryable_status(self, status_code: int) -> bool:
-        """Check if HTTP status code is retryable.
-
-        Args:
-            status_code: HTTP status code
-
-        Returns:
-            True if request should be retried
-        """
-        # Retry on server errors (5xx) but not client errors (4xx)
-        # Exception: 429 (rate limit) is handled separately with backoff
-        return status_code >= 500
-
     async def get(
         self, path: str, params: dict[str, Any] | None = None
     ) -> dict[str, Any]:
@@ -219,76 +188,7 @@ class AvanzaClient:
         Raises:
             AvanzaError: If request fails after all retries
         """
-        if not self._client:
-            raise RuntimeError("Client not initialized. Use async context manager.")
-
-        request_id = self._generate_request_id()
-
-        @retry(
-            retry=retry_if_exception_type(
-                (httpx.TimeoutException, httpx.NetworkError, AvanzaRetryableError)
-            ),
-            stop=stop_after_attempt(self._max_retries),
-            wait=wait_exponential(multiplier=1, min=2, max=10),
-            reraise=True,
-            before_sleep=lambda retry_state: logger.info(
-                "Retrying request [%s] %s, attempt %d after %s",
-                request_id,
-                path,
-                retry_state.attempt_number,
-                type(retry_state.outcome.exception()).__name__
-                if retry_state.outcome
-                else "unknown",
-            ),
-        )
-        async def _get_with_retry() -> dict[str, Any]:
-            try:
-                response = await self._client.get(path, params=params)  # type: ignore
-            except httpx.TimeoutException as e:
-                logger.warning(
-                    "Request timeout [%s] %s: %s", request_id, path, str(e)
-                )
-                raise AvanzaTimeoutError(
-                    f"[{request_id}] Request timeout after {self._timeout}s: {path}"
-                ) from e
-            except httpx.NetworkError as e:
-                logger.warning(
-                    "Network error [%s] %s: %s", request_id, path, str(e)
-                )
-                raise AvanzaNetworkError(
-                    f"[{request_id}] Network error: {path} - {str(e)}"
-                ) from e
-
-            if not response.is_success:
-                # Check if this is a retryable server error
-                if self._is_retryable_status(response.status_code):
-                    # Raise specific retryable error to trigger retry
-                    raise AvanzaRetryableError(
-                        response.status_code,
-                        f"[{request_id}] Server error (will retry): {path}",
-                    )
-                # Non-retryable errors
-                self._handle_error(response, path, request_id, params)
-
-            # Handle empty responses
-            if not response.content:
-                logger.debug("Empty response [%s] %s", request_id, path)
-                return {}
-
-            # Parse JSON response
-            try:
-                return response.json()
-            except Exception as e:
-                logger.error(
-                    "JSON parse error [%s] %s: %s", request_id, path, str(e)
-                )
-                raise AvanzaAPIError(
-                    response.status_code,
-                    f"[{request_id}] Invalid JSON response: {path}",
-                ) from e
-
-        logger.debug("GET [%s] %s params=%s", request_id, path, params)
-        return await _get_with_retry()
+        return await self._request("GET", path, params=params)
 
     async def post(
         self, path: str, json: dict[str, Any] | None = None
@@ -308,10 +208,23 @@ class AvanzaClient:
         Raises:
             AvanzaError: If request fails after all retries
         """
-        if not self._client:
+        return await self._request("POST", path, json=json)
+
+    async def _request(
+        self,
+        method: str,
+        path: str,
+        *,
+        params: dict[str, Any] | None = None,
+        json: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Send a request through the shared retry and response pipeline."""
+        client = self._client
+        if not client:
             raise RuntimeError("Client not initialized. Use async context manager.")
 
-        request_id = self._generate_request_id()
+        request_id = str(uuid.uuid4())[:8]
+        post_prefix = "POST " if method == "POST" else ""
 
         @retry(
             retry=retry_if_exception_type(
@@ -321,7 +234,7 @@ class AvanzaClient:
             wait=wait_exponential(multiplier=1, min=2, max=10),
             reraise=True,
             before_sleep=lambda retry_state: logger.info(
-                "Retrying POST request [%s] %s, attempt %d after %s",
+                f"Retrying {post_prefix}request [%s] %s, attempt %d after %s",
                 request_id,
                 path,
                 retry_state.attempt_number,
@@ -330,46 +243,64 @@ class AvanzaClient:
                 else "unknown",
             ),
         )
-        async def _post_with_retry() -> dict[str, Any]:
+        async def _request_with_retry() -> dict[str, Any]:
             try:
-                response = await self._client.post(path, json=json)  # type: ignore
+                response = await client.request(method, path, params=params, json=json)
             except httpx.TimeoutException as e:
                 logger.warning(
-                    "POST timeout [%s] %s: %s", request_id, path, str(e)
+                    "POST timeout [%s] %s: %s"
+                    if method == "POST"
+                    else "Request timeout [%s] %s: %s",
+                    request_id,
+                    path,
+                    str(e),
                 )
                 raise AvanzaTimeoutError(
                     f"[{request_id}] Request timeout after {self._timeout}s: {path}"
                 ) from e
             except httpx.NetworkError as e:
                 logger.warning(
-                    "POST network error [%s] %s: %s", request_id, path, str(e)
+                    "POST network error [%s] %s: %s"
+                    if method == "POST"
+                    else "Network error [%s] %s: %s",
+                    request_id,
+                    path,
+                    str(e),
                 )
                 raise AvanzaNetworkError(
                     f"[{request_id}] Network error: {path} - {str(e)}"
                 ) from e
 
             if not response.is_success:
-                if self._is_retryable_status(response.status_code):
+                # Check if this is a retryable server error
+                if response.status_code >= 500:
+                    # Raise specific retryable error to trigger retry
                     raise AvanzaRetryableError(
                         response.status_code,
                         f"[{request_id}] Server error (will retry): {path}",
                     )
-                self._handle_error(response, path, request_id)
+                # Non-retryable errors
+                self._handle_error(response, path, request_id, params)
 
+            # Handle empty responses
             if not response.content:
-                logger.debug("Empty POST response [%s] %s", request_id, path)
+                logger.debug(f"Empty {post_prefix}response [%s] %s", request_id, path)
                 return {}
 
+            # Parse JSON response
             try:
                 return response.json()
             except Exception as e:
                 logger.error(
-                    "POST JSON parse error [%s] %s: %s", request_id, path, str(e)
+                    f"{post_prefix}JSON parse error [%s] %s: %s", request_id, path, str(e)
                 )
                 raise AvanzaAPIError(
                     response.status_code,
                     f"[{request_id}] Invalid JSON response: {path}",
                 ) from e
 
-        logger.debug("POST [%s] %s", request_id, path)
-        return await _post_with_retry()
+        if method == "POST":
+            logger.debug("POST [%s] %s", request_id, path)
+        else:
+            logger.debug("GET [%s] %s params=%s", request_id, path, params)
+        return await _request_with_retry()

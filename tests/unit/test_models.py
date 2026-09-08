@@ -1,7 +1,5 @@
 """Unit tests for Pydantic models."""
 
-import pytest
-from datetime import date
 from decimal import Decimal
 
 from avanza_mcp.models.stock import (
@@ -11,19 +9,15 @@ from avanza_mcp.models.stock import (
     StockChart,
     OHLCDataPoint,
     OrderDepth,
-    OrderLevel,
-    OrderSide,
 )
 from avanza_mcp.models.fund import (
     FundInfo,
     FundPerformance,
     FundSustainability,
-    ChartDataPoint,
 )
 from avanza_mcp.models.search import (
     SearchResponse,
     SearchHit,
-    SearchPrice,
 )
 
 
@@ -44,23 +38,24 @@ class TestStockModels:
             "totalValueTraded": 1000000.0,
             "totalVolumeTraded": 10000.0,
             "isRealTime": True,
+            "unknownField": "should not fail",
+            "anotherExtra": 123,
+            "unknownField1": "test",
+            "unknownField2": 123,
+            "nestedUnknown": {"a": 1},
         }
         quote = Quote.model_validate(data)
         assert quote.buy == 100.5
         assert quote.last == 100.75
         assert quote.isRealTime is True
 
-    def test_quote_with_extra_fields(self):
-        """Test Quote model handles extra fields gracefully."""
-        data = {
-            "buy": 100.5,
-            "sell": 101.0,
+        assert quote.model_extra == {
             "unknownField": "should not fail",
             "anotherExtra": 123,
+            "unknownField1": "test",
+            "unknownField2": 123,
+            "nestedUnknown": {"a": 1},
         }
-        quote = Quote.model_validate(data)
-        assert quote.buy == 100.5
-        # Extra fields should be stored
 
     def test_quote_with_missing_optional_fields(self):
         """Test Quote model with missing optional fields."""
@@ -70,18 +65,6 @@ class TestStockModels:
         assert quote.sell is None
         assert quote.last is None
 
-    def test_listing_model(self):
-        """Test Listing model."""
-        data = {
-            "shortName": "VOLV B",
-            "tickerSymbol": "VOLV B",
-            "currency": "SEK",
-            "marketPlaceName": "Stockholm",
-        }
-        listing = Listing.model_validate(data)
-        assert listing.shortName == "VOLV B"
-        assert listing.currency == "SEK"
-
     def test_stock_info_complex(self):
         """Test StockInfo with nested objects."""
         data = {
@@ -90,6 +73,7 @@ class TestStockModels:
             "isin": "SE0000115446",
             "listing": {
                 "shortName": "VOLV B",
+                "tickerSymbol": "VOLV B",
                 "currency": "SEK",
                 "marketPlaceName": "Stockholm",
             },
@@ -102,6 +86,7 @@ class TestStockModels:
         assert stock.orderbookId == "5479"
         assert stock.name == "Volvo B"
         assert stock.listing.shortName == "VOLV B"
+        assert stock.listing.currency == "SEK"
         assert stock.quote.last == 250.5
 
     def test_ohlc_data_point(self):
@@ -206,6 +191,7 @@ class TestFundModels:
             ],
             "holdingChartData": [
                 {"name": "Apple Inc", "y": 5.0},
+                {"name": "Test", "y": 25.5},
             ],
         }
         fund = FundInfo.model_validate(data)
@@ -213,10 +199,7 @@ class TestFundModels:
         assert fund.country_chart_data[0].name == "Sweden"
         assert fund.country_chart_data[0].y == 45.0
 
-    def test_chart_data_point(self):
-        """Test ChartDataPoint model."""
-        data = {"name": "Test", "y": 25.5}
-        point = ChartDataPoint.model_validate(data)
+        point = fund.holding_chart_data[1]
         assert point.name == "Test"
         assert point.y == 25.5
 
@@ -240,18 +223,6 @@ class TestFundModels:
 class TestSearchModels:
     """Tests for search-related models."""
 
-    def test_search_price(self):
-        """Test SearchPrice model."""
-        data = {
-            "last": "250.50",
-            "currency": "SEK",
-            "todayChangePercent": "1.5",
-            "todayChangeDirection": 1,
-        }
-        price = SearchPrice.model_validate(data)
-        assert price.last == "250.50"
-        assert price.currency == "SEK"
-
     def test_search_hit(self):
         """Test SearchHit model."""
         data = {
@@ -266,13 +237,19 @@ class TestSearchModels:
             "sellable": True,
             "buyable": True,
             "marketPlaceName": "Stockholm",
-            "price": {"last": "250.50", "currency": "SEK"},
+            "price": {
+                "last": "250.50",
+                "currency": "SEK",
+                "todayChangePercent": "1.5",
+                "todayChangeDirection": 1,
+            },
         }
         hit = SearchHit.model_validate(data)
         assert hit.type == "STOCK"
         assert hit.title == "Volvo B"
         assert hit.orderBookId == "5479"
         assert hit.price.last == "250.50"
+        assert hit.price.currency == "SEK"
 
     def test_search_response(self):
         """Test SearchResponse model."""
@@ -307,17 +284,6 @@ class TestSearchModels:
 
 class TestModelConfig:
     """Tests for model configuration."""
-
-    def test_extra_fields_allowed(self):
-        """Test that extra fields from API don't break models."""
-        data = {
-            "buy": 100.0,
-            "unknownField1": "test",
-            "unknownField2": 123,
-            "nestedUnknown": {"a": 1},
-        }
-        quote = Quote.model_validate(data)
-        assert quote.buy == 100.0
 
     def test_populate_by_name(self):
         """Test that both alias and field names work."""

@@ -1,14 +1,13 @@
 """Certificate-related Pydantic models."""
 
-from pydantic import BaseModel, Field
-from .stock import MODEL_CONFIG, Quote, Listing, HistoricalClosingPrices, KeyIndicators
+from pydantic import Field
+from .common import MODEL_CONFIG as MODEL_CONFIG, AvanzaModel
+from .stock import Quote, Listing, HistoricalClosingPrices, KeyIndicators
 from .filter import UnderlyingInstrument, SortBy, FilterResponse
 
 
-class CertificateListItem(BaseModel):
+class CertificateListItem(AvanzaModel):
     """Certificate in filter/list results."""
-
-    model_config = MODEL_CONFIG
 
     orderbookId: str
     countryCode: str
@@ -25,10 +24,8 @@ class CertificateListItem(BaseModel):
     sellPrice: float | None = None
 
 
-class CertificateInfo(BaseModel):
+class CertificateInfo(AvanzaModel):
     """Detailed certificate information."""
-
-    model_config = MODEL_CONFIG
 
     orderbookId: str
     name: str
@@ -44,19 +41,15 @@ class CertificateInfo(BaseModel):
     subCategory: str | None = None
 
 
-class CertificateDetails(BaseModel):
+class CertificateDetails(AvanzaModel):
     """Detailed certificate extended information."""
-
-    model_config = MODEL_CONFIG
 
     # Flexible structure to handle various response formats
     pass
 
 
-class CertificateFilter(BaseModel):
+class CertificateFilter(AvanzaModel):
     """Filter criteria for certificates."""
-
-    model_config = MODEL_CONFIG
 
     directions: list[str] = Field(default_factory=list)
     leverages: list[float] = Field(default_factory=list)
@@ -66,10 +59,8 @@ class CertificateFilter(BaseModel):
     issuers: list[str] = Field(default_factory=list)
 
 
-class CertificateFilterRequest(BaseModel):
+class CertificateFilterRequest(AvanzaModel):
     """Complete filter request for certificates."""
-
-    model_config = MODEL_CONFIG
 
     filter: CertificateFilter
     offset: int = 0
@@ -79,8 +70,6 @@ class CertificateFilterRequest(BaseModel):
 
 class CertificateFilterResponse(FilterResponse):
     """Response from certificate filter endpoint."""
-
-    model_config = MODEL_CONFIG
 
     certificates: list[CertificateListItem]
     filter: CertificateFilter | None = None

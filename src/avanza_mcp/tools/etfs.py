@@ -7,6 +7,7 @@ from ..client import AvanzaClient
 from ..models.etf import ETFFilter, ETFFilterRequest
 from ..models.filter import SortBy
 from ..services import MarketDataService
+from ._logging import log_errors
 
 
 @mcp.tool()
@@ -58,7 +59,7 @@ async def filter_etfs(
     """
     ctx.info(f"Filtering ETFs: offset={offset}, limit={limit}")
 
-    try:
+    async with log_errors(ctx, "Failed to filter ETFs"):
         filter_req = ETFFilterRequest(
             filter=ETFFilter(
                 assetCategories=asset_categories or [],
@@ -81,10 +82,6 @@ async def filter_etfs(
         ctx.info(f"Retrieved {len(result.etfs)} ETFs")
         return result.model_dump(by_alias=True, exclude_none=True)
 
-    except Exception as e:
-        ctx.error(f"Failed to filter ETFs: {str(e)}")
-        raise
-
 
 @mcp.tool()
 async def get_etf_info(ctx: Context, instrument_id: str) -> dict:
@@ -106,17 +103,13 @@ async def get_etf_info(ctx: Context, instrument_id: str) -> dict:
     """
     ctx.info(f"Fetching ETF info for ID: {instrument_id}")
 
-    try:
+    async with log_errors(ctx, "Failed to fetch ETF info"):
         async with AvanzaClient() as client:
             service = MarketDataService(client)
             etf = await service.get_etf_info(instrument_id)
 
         ctx.info(f"Retrieved info for: {etf.name}")
         return etf.model_dump(by_alias=True, exclude_none=True)
-
-    except Exception as e:
-        ctx.error(f"Failed to fetch ETF info: {str(e)}")
-        raise
 
 
 @mcp.tool()
@@ -138,14 +131,10 @@ async def get_etf_details(ctx: Context, instrument_id: str) -> dict:
     """
     ctx.info(f"Fetching ETF details for ID: {instrument_id}")
 
-    try:
+    async with log_errors(ctx, "Failed to fetch ETF details"):
         async with AvanzaClient() as client:
             service = MarketDataService(client)
             details = await service.get_etf_details(instrument_id)
 
         ctx.info("Retrieved ETF details")
         return details.model_dump(by_alias=True, exclude_none=True)
-
-    except Exception as e:
-        ctx.error(f"Failed to fetch ETF details: {str(e)}")
-        raise

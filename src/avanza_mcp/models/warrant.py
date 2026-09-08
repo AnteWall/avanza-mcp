@@ -1,15 +1,14 @@
 """Warrant-related Pydantic models."""
 
-from pydantic import BaseModel, Field
+from pydantic import Field
 
+from .common import MODEL_CONFIG as MODEL_CONFIG, AvanzaModel
 from .filter import SortBy, FilterResponse, UnderlyingInstrument
-from .stock import MODEL_CONFIG, Listing, Quote, HistoricalClosingPrices
+from .stock import Listing, Quote, HistoricalClosingPrices
 
 
-class WarrantListItem(BaseModel):
+class WarrantListItem(AvanzaModel):
     """Warrant in filter/list results."""
-
-    model_config = MODEL_CONFIG
 
     orderbookId: str
     countryCode: str
@@ -27,10 +26,8 @@ class WarrantListItem(BaseModel):
     sellPrice: float | None = None
 
 
-class WarrantInfo(BaseModel):
+class WarrantInfo(AvanzaModel):
     """Detailed warrant information."""
-
-    model_config = MODEL_CONFIG
 
     orderbookId: str
     name: str
@@ -47,19 +44,15 @@ class WarrantInfo(BaseModel):
     subCategory: str | None = None
 
 
-class WarrantDetails(BaseModel):
+class WarrantDetails(AvanzaModel):
     """Detailed warrant extended information."""
-
-    model_config = MODEL_CONFIG
 
     # Flexible structure to handle various response formats
     pass
 
 
-class WarrantFilter(BaseModel):
+class WarrantFilter(AvanzaModel):
     """Filter criteria for warrants."""
-
-    model_config = MODEL_CONFIG
 
     directions: list[str] = Field(default_factory=list)
     subTypes: list[str] = Field(default_factory=list)
@@ -67,10 +60,8 @@ class WarrantFilter(BaseModel):
     underlyingInstruments: list[str] = Field(default_factory=list)
 
 
-class WarrantFilterRequest(BaseModel):
+class WarrantFilterRequest(AvanzaModel):
     """Complete filter request for warrants."""
-
-    model_config = MODEL_CONFIG
 
     filter: WarrantFilter
     offset: int = 0
@@ -80,8 +71,6 @@ class WarrantFilterRequest(BaseModel):
 
 class WarrantFilterResponse(FilterResponse):
     """Response from warrant filter endpoint."""
-
-    model_config = MODEL_CONFIG
 
     warrants: list[WarrantListItem]
     filter: WarrantFilter | None = None

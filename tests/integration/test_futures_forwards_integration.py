@@ -5,68 +5,57 @@ Run with: pytest tests/integration/test_futures_forwards_integration.py -v -m in
 """
 
 import pytest
-from avanza_mcp.client import AvanzaClient
 from avanza_mcp.models.filter import SortBy
 from avanza_mcp.models.future_forward import (
     FutureForwardMatrixFilter,
     FutureForwardMatrixRequest,
 )
-from avanza_mcp.services import MarketDataService
 
 
 @pytest.mark.integration
 class TestFutureForwardEndpoints:
     """Test futures/forwards endpoints with real API."""
 
-    @pytest.mark.asyncio
-    async def test_list_futures_forwards(self):
+    async def test_list_futures_forwards(self, service):
         """Test listing futures/forwards with empty filters."""
-        async with AvanzaClient() as client:
-            service = MarketDataService(client)
-            # Use empty filters as shown in the working curl example
-            request = FutureForwardMatrixRequest(
-                filter=FutureForwardMatrixFilter(
-                    underlyingInstruments=[],
-                    optionTypes=[],
-                    endDates=[],
-                    callIndicators=[],
-                ),
-                offset=0,
-                limit=5,
-                sortBy=SortBy(field="strikePrice", order="desc"),
-            )
-            result = await service.list_futures_forwards(request)
+        # Use empty filters as shown in the working curl example
+        request = FutureForwardMatrixRequest(
+            filter=FutureForwardMatrixFilter(
+                underlyingInstruments=[],
+                optionTypes=[],
+                endDates=[],
+                callIndicators=[],
+            ),
+            offset=0,
+            limit=5,
+            sortBy=SortBy(field="strikePrice", order="desc"),
+        )
+        result = await service.list_futures_forwards(request)
 
         # Result structure may vary, just check it returns something
         assert result is not None
 
-    @pytest.mark.asyncio
-    async def test_get_future_forward_info(self):
+    async def test_get_future_forward_info(self, service):
         """Test getting future/forward info."""
-        async with AvanzaClient() as client:
-            service = MarketDataService(client)
-            # Discover a current contract instead of pinning an expiring ID.
-            contracts = await service.list_futures_forwards(
-                FutureForwardMatrixRequest(
-                    filter=FutureForwardMatrixFilter(),
-                    limit=1,
-                    sortBy=SortBy(field="strikePrice", order="desc"),
-                )
+        # Discover a current contract instead of pinning an expiring ID.
+        contracts = await service.list_futures_forwards(
+            FutureForwardMatrixRequest(
+                filter=FutureForwardMatrixFilter(),
+                limit=1,
+                sortBy=SortBy(field="strikePrice", order="desc"),
             )
-            futures = contracts.model_dump()["futureForwards"]
-            assert futures, "Expected at least one current future/forward"
-            instrument_id = futures[0]["orderbookId"]
-            result = await service.get_future_forward_info(instrument_id)
+        )
+        futures = contracts.model_dump()["futureForwards"]
+        assert futures, "Expected at least one current future/forward"
+        instrument_id = futures[0]["orderbookId"]
+        result = await service.get_future_forward_info(instrument_id)
 
         assert result.orderbookId == instrument_id
         assert result.name is not None
 
-    @pytest.mark.asyncio
-    async def test_get_future_forward_filter_options(self):
+    async def test_get_future_forward_filter_options(self, service):
         """Test getting filter options for futures/forwards."""
-        async with AvanzaClient() as client:
-            service = MarketDataService(client)
-            result = await service.get_future_forward_filter_options()
+        result = await service.get_future_forward_filter_options()
 
         assert result is not None
         assert isinstance(result, dict)

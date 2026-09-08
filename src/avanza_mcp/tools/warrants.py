@@ -7,6 +7,7 @@ from ..client import AvanzaClient
 from ..models.filter import SortBy
 from ..models.warrant import WarrantFilter, WarrantFilterRequest
 from ..services import MarketDataService
+from ._logging import log_errors
 
 
 @mcp.tool()
@@ -49,7 +50,7 @@ async def filter_warrants(
     """
     ctx.info(f"Filtering warrants: offset={offset}, limit={limit}")
 
-    try:
+    async with log_errors(ctx, "Failed to filter warrants"):
         filter_req = WarrantFilterRequest(
             filter=WarrantFilter(
                 directions=directions or [],
@@ -68,10 +69,6 @@ async def filter_warrants(
 
         ctx.info(f"Retrieved {len(result.warrants)} warrants")
         return result.model_dump(by_alias=True, exclude_none=True)
-
-    except Exception as e:
-        ctx.error(f"Failed to filter warrants: {str(e)}")
-        raise
 
 
 @mcp.tool()
@@ -94,17 +91,13 @@ async def get_warrant_info(ctx: Context, instrument_id: str) -> dict:
     """
     ctx.info(f"Fetching warrant info for ID: {instrument_id}")
 
-    try:
+    async with log_errors(ctx, "Failed to fetch warrant info"):
         async with AvanzaClient() as client:
             service = MarketDataService(client)
             warrant = await service.get_warrant_info(instrument_id)
 
         ctx.info(f"Retrieved info for: {warrant.name}")
         return warrant.model_dump(by_alias=True, exclude_none=True)
-
-    except Exception as e:
-        ctx.error(f"Failed to fetch warrant info: {str(e)}")
-        raise
 
 
 @mcp.tool()
@@ -126,14 +119,10 @@ async def get_warrant_details(ctx: Context, instrument_id: str) -> dict:
     """
     ctx.info(f"Fetching warrant details for ID: {instrument_id}")
 
-    try:
+    async with log_errors(ctx, "Failed to fetch warrant details"):
         async with AvanzaClient() as client:
             service = MarketDataService(client)
             details = await service.get_warrant_details(instrument_id)
 
         ctx.info("Retrieved warrant details")
         return details.model_dump(by_alias=True, exclude_none=True)
-
-    except Exception as e:
-        ctx.error(f"Failed to fetch warrant details: {str(e)}")
-        raise

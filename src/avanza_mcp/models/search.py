@@ -1,21 +1,12 @@
 """Search result models matching Avanza API response structure."""
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
+
+from .common import MODEL_CONFIG as MODEL_CONFIG, AvanzaModel
 
 
-# Standard model config for all models
-MODEL_CONFIG = ConfigDict(
-    populate_by_name=True,
-    str_strip_whitespace=True,
-    validate_assignment=True,
-    extra="allow",  # Don't fail on extra fields from API
-)
-
-
-class SearchPrice(BaseModel):
+class SearchPrice(AvanzaModel):
     """Price information for a search result."""
-
-    model_config = MODEL_CONFIG
 
     last: str | None = None
     currency: str | None = None
@@ -27,10 +18,8 @@ class SearchPrice(BaseModel):
     spread: str | None = None
 
 
-class StockSector(BaseModel):
+class StockSector(AvanzaModel):
     """Stock sector classification."""
-
-    model_config = MODEL_CONFIG
 
     id: int
     level: int
@@ -39,10 +28,8 @@ class StockSector(BaseModel):
     highlightedName: str | None = None
 
 
-class FundTag(BaseModel):
+class FundTag(AvanzaModel):
     """Fund classification tag."""
-
-    model_config = MODEL_CONFIG
 
     title: str
     category: str
@@ -50,10 +37,8 @@ class FundTag(BaseModel):
     highlightedTitle: str | None = None
 
 
-class SearchHit(BaseModel):
+class SearchHit(AvanzaModel):
     """Individual search result from the Avanza API."""
-
-    model_config = MODEL_CONFIG
 
     type: str
     title: str
@@ -75,45 +60,35 @@ class SearchHit(BaseModel):
     highlightedSubType: str = ""
 
 
-class TypeFacet(BaseModel):
+class TypeFacet(AvanzaModel):
     """Facet count for an instrument type."""
-
-    model_config = MODEL_CONFIG
 
     type: str
     count: int
 
 
-class SearchFacets(BaseModel):
+class SearchFacets(AvanzaModel):
     """Search result facets with type counts."""
-
-    model_config = MODEL_CONFIG
 
     types: list[TypeFacet]
 
 
-class SearchFilter(BaseModel):
+class SearchFilter(AvanzaModel):
     """Applied search filters."""
-
-    model_config = MODEL_CONFIG
 
     types: list[str] = Field(default_factory=list)
 
 
-class SearchPagination(BaseModel):
+class SearchPagination(AvanzaModel):
     """Pagination information."""
-
-    model_config = MODEL_CONFIG
 
     size: int
     # Using field alias since 'from' is a Python keyword
     from_: int = Field(alias="from")
 
 
-class SearchResponse(BaseModel):
+class SearchResponse(AvanzaModel):
     """Complete search API response from Avanza."""
-
-    model_config = MODEL_CONFIG
 
     totalNumberOfHits: int
     hits: list[SearchHit]

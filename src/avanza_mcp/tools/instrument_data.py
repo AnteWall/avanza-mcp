@@ -5,6 +5,7 @@ from fastmcp import Context
 from .. import mcp
 from ..client import AvanzaClient
 from ..services import MarketDataService
+from ._logging import log_errors
 
 
 @mcp.tool()
@@ -33,7 +34,7 @@ async def get_number_of_owners(ctx: Context, instrument_id: str) -> dict:
     """
     ctx.info(f"Fetching number of owners for ID: {instrument_id}")
 
-    try:
+    async with log_errors(ctx, "Failed to fetch number of owners"):
         async with AvanzaClient() as client:
             service = MarketDataService(client)
             result = await service.get_number_of_owners(instrument_id)
@@ -43,10 +44,6 @@ async def get_number_of_owners(ctx: Context, instrument_id: str) -> dict:
         else:
             ctx.info("Retrieved number of owners data")
         return result.model_dump(by_alias=True, exclude_none=True)
-
-    except Exception as e:
-        ctx.error(f"Failed to fetch number of owners: {str(e)}")
-        raise
 
 
 @mcp.tool()
@@ -73,17 +70,13 @@ async def get_short_selling(ctx: Context, instrument_id: str) -> dict:
     """
     ctx.info(f"Fetching short selling data for ID: {instrument_id}")
 
-    try:
+    async with log_errors(ctx, "Failed to fetch short selling data"):
         async with AvanzaClient() as client:
             service = MarketDataService(client)
             result = await service.get_short_selling(instrument_id)
 
         ctx.info("Retrieved short selling data")
         return result.model_dump(by_alias=True, exclude_none=True)
-
-    except Exception as e:
-        ctx.error(f"Failed to fetch short selling data: {str(e)}")
-        raise
 
 
 @mcp.tool()
@@ -121,7 +114,7 @@ async def get_marketmaker_chart(
     """
     ctx.info(f"Fetching chart data for ID: {instrument_id}, period: {time_period}")
 
-    try:
+    async with log_errors(ctx, "Failed to fetch chart data"):
         async with AvanzaClient() as client:
             service = MarketDataService(client)
             result = await service.get_marketmaker_chart(instrument_id, time_period)
@@ -129,7 +122,3 @@ async def get_marketmaker_chart(
         data_points = len(result.ohlc) if result.ohlc else 0
         ctx.info(f"Retrieved chart with {data_points} data points")
         return result.model_dump(by_alias=True, exclude_none=True)
-
-    except Exception as e:
-        ctx.error(f"Failed to fetch chart data: {str(e)}")
-        raise

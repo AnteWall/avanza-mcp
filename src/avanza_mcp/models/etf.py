@@ -1,10 +1,10 @@
 """ETF-related Pydantic models."""
 
-from pydantic import BaseModel, Field
+from pydantic import Field
 
+from .common import MODEL_CONFIG as MODEL_CONFIG, AvanzaModel
 from .filter import FilterResponse, SortBy
 from .stock import (
-    MODEL_CONFIG,
     HistoricalClosingPrices,
     Listing,
     MarketPlace,
@@ -12,10 +12,8 @@ from .stock import (
 )
 
 
-class ETFListItem(BaseModel):
+class ETFListItem(AvanzaModel):
     """ETF in filter/list results."""
-
-    model_config = MODEL_CONFIG
 
     orderbookId: str
     countryCode: str
@@ -30,10 +28,8 @@ class ETFListItem(BaseModel):
     hasPosition: bool = False
 
 
-class ETFInfo(BaseModel):
+class ETFInfo(AvanzaModel):
     """Detailed ETF information."""
-
-    model_config = MODEL_CONFIG
 
     orderbookId: str
     name: str
@@ -47,19 +43,15 @@ class ETFInfo(BaseModel):
     type: str | None = None
 
 
-class ETFDetails(BaseModel):
+class ETFDetails(AvanzaModel):
     """Detailed ETF extended information."""
-
-    model_config = MODEL_CONFIG
 
     # Flexible structure to handle various response formats
     pass
 
 
-class ETFFilter(BaseModel):
+class ETFFilter(AvanzaModel):
     """Filter criteria for ETFs."""
-
-    model_config = MODEL_CONFIG
 
     assetCategories: list[str] = Field(default_factory=list)
     subCategories: list[str] = Field(default_factory=list)
@@ -70,10 +62,8 @@ class ETFFilter(BaseModel):
     currencyCodes: list[str] = Field(default_factory=list)
 
 
-class ETFFilterRequest(BaseModel):
+class ETFFilterRequest(AvanzaModel):
     """Complete filter request for ETFs."""
-
-    model_config = MODEL_CONFIG
 
     filter: ETFFilter
     offset: int = 0
@@ -83,8 +73,6 @@ class ETFFilterRequest(BaseModel):
 
 class ETFFilterResponse(FilterResponse):
     """Response from ETF filter endpoint."""
-
-    model_config = MODEL_CONFIG
 
     etfs: list[ETFListItem]
     filter: ETFFilter | None = None

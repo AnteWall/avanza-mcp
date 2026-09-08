@@ -5,28 +5,23 @@ Run with: pytest tests/integration/test_warrants_integration.py -v -m integratio
 """
 
 import pytest
-from avanza_mcp.client import AvanzaClient
 from avanza_mcp.models.filter import SortBy
 from avanza_mcp.models.warrant import WarrantFilter, WarrantFilterRequest
-from avanza_mcp.services import MarketDataService
 
 
 @pytest.mark.integration
 class TestWarrantEndpoints:
     """Test warrant endpoints with real API."""
 
-    @pytest.mark.asyncio
-    async def test_filter_warrants(self):
+    async def test_filter_warrants(self, service):
         """Test warrant filter endpoint."""
-        async with AvanzaClient() as client:
-            service = MarketDataService(client)
-            request = WarrantFilterRequest(
-                filter=WarrantFilter(),
-                offset=0,
-                limit=5,
-                sortBy=SortBy(field="name", order="asc"),
-            )
-            result = await service.filter_warrants(request)
+        request = WarrantFilterRequest(
+            filter=WarrantFilter(),
+            offset=0,
+            limit=5,
+            sortBy=SortBy(field="name", order="asc"),
+        )
+        result = await service.filter_warrants(request)
 
         assert hasattr(result, "warrants")
         assert isinstance(result.warrants, list)
@@ -35,32 +30,26 @@ class TestWarrantEndpoints:
             assert hasattr(warrant, "orderbookId")
             assert hasattr(warrant, "name")
 
-    @pytest.mark.asyncio
-    async def test_get_warrant_info(self):
+    async def test_get_warrant_info(self, service):
         """Test getting warrant info."""
-        async with AvanzaClient() as client:
-            service = MarketDataService(client)
-            # Discover a current warrant instead of pinning an expiring ID.
-            warrants = await service.filter_warrants(
-                WarrantFilterRequest(
-                    filter=WarrantFilter(),
-                    limit=1,
-                    sortBy=SortBy(field="name", order="asc"),
-                )
+        # Discover a current warrant instead of pinning an expiring ID.
+        warrants = await service.filter_warrants(
+            WarrantFilterRequest(
+                filter=WarrantFilter(),
+                limit=1,
+                sortBy=SortBy(field="name", order="asc"),
             )
-            assert warrants.warrants, "Expected at least one current warrant"
-            instrument_id = warrants.warrants[0].orderbookId
-            result = await service.get_warrant_info(instrument_id)
+        )
+        assert warrants.warrants, "Expected at least one current warrant"
+        instrument_id = warrants.warrants[0].orderbookId
+        result = await service.get_warrant_info(instrument_id)
 
         assert result.orderbookId == instrument_id
         assert result.name is not None
 
-    @pytest.mark.asyncio
-    async def test_invalid_warrant_id(self):
+    async def test_invalid_warrant_id(self, service):
         """Test getting warrant with invalid ID."""
         instrument_id = "999999999"
 
         with pytest.raises(Exception):  # Should raise some kind of error
-            async with AvanzaClient() as client:
-                service = MarketDataService(client)
-                await service.get_warrant_info(instrument_id)
+            await service.get_warrant_info(instrument_id)
