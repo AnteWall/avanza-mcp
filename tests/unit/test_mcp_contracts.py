@@ -23,7 +23,7 @@ def upstream(monkeypatch):
 async def test_registered_schemas_and_annotations():
     async with Client(mcp) as client:
         tools = {tool.name: tool for tool in await client.list_tools()}
-    assert len(tools) == 34
+    assert len(tools) == 35
     for tool in tools.values():
         props = tool.inputSchema["properties"]
         assert "instrument_id" not in props and "ctx" not in props
@@ -50,6 +50,13 @@ async def test_registered_schemas_and_annotations():
         "asc",
         "desc",
     ]
+    leveraged = tools["screen_leveraged_instruments"]
+    assert leveraged.outputSchema
+    assert (
+        leveraged.inputSchema["properties"]["underlying_order_book_id"]["pattern"]
+        == "^[0-9]+$"
+    )
+    assert leveraged.inputSchema["properties"]["max_per_type"]["maximum"] == 200
     assert (
         tools["list_futures_forwards"].inputSchema["properties"]["end_dates"]["anyOf"][
             0
