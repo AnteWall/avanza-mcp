@@ -8,7 +8,7 @@ from unittest.mock import Mock
 import httpx
 import pytest
 import respx
-from fastmcp import Client, FastMCP
+from fastmcp import Client
 from fastmcp.exceptions import ToolError
 
 from avanza_mcp import main
@@ -107,10 +107,12 @@ async def test_existing_market_tools_reuse_authenticated_session():
 
 
 def test_auth_transport_is_stdio(monkeypatch):
-    run = Mock()
-    monkeypatch.setattr(FastMCP, "run", run)
+    server = Mock()
+    create = Mock(return_value=server)
+    monkeypatch.setattr("avanza_mcp.auth.server.create_auth_server", create)
     run_auth_server()
-    run.assert_called_once_with()
+    create.assert_called_once_with()
+    server.run.assert_called_once_with()
 
 
 def test_cli_preserves_public_default(monkeypatch):

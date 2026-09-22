@@ -1,6 +1,6 @@
 """Read-only public Avanza market data. Remote access controls are deployment-specific."""
 
-__version__ = "2.0.0"
+__version__ = "2.1.0"
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
