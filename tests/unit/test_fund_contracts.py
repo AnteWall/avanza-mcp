@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 from fastmcp import Client
-from jsonschema import validate
+from jsonschema import FormatChecker, validate
 
 from avanza_mcp import mcp
 from avanza_mcp.client import AvanzaClient
@@ -79,7 +79,7 @@ async def test_fund_guide_structured_contract(upstream):
         result = await client.call_tool("get_fund_info", {"order_book_id": "41567"})
     content = result.structured_content
     schema = tools["get_fund_info"].outputSchema
-    validate(content, schema)
+    validate(content, schema, format_checker=FormatChecker())
     for field in (
         "productFee",
         "managementFee",
@@ -92,6 +92,11 @@ async def test_fund_guide_structured_contract(upstream):
             "null",
         }
     assert content["nav"] == "569.9"
+    assert content["navDate"] == "2026-09-07T00:00:00"
+    assert schema["properties"]["navDate"]["anyOf"] == [
+        {"type": "string"},
+        {"type": "null"},
+    ]
     assert schema["properties"]["categories"]["anyOf"][0]["items"] == {"type": "string"}
     company = schema["properties"]["adminCompany"]["anyOf"][0]
     assert set(company["properties"]) == {"name", "country", "url"}

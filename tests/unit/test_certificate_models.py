@@ -89,9 +89,8 @@ class TestCertificateModels:
         assert "filter" in data
         assert data["filter"]["directions"] == ["long"]
 
-    def test_model_extra_allow(self):
-        """Test that models accept extra fields."""
-        # This should not raise an error due to extra="allow"
+    def test_model_extra_ignored(self):
+        """Test that models discard unrecognized fields."""
         data = {
             "orderbookId": "12345",
             "name": "Test",
@@ -99,3 +98,4 @@ class TestCertificateModels:
         }
         info = CertificateInfo.model_validate(data)
         assert info.orderbookId == "12345"
+        assert "unknownField" not in info.model_dump()

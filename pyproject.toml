@@ -8,7 +8,9 @@ dependencies = [
     "fastmcp==3.4.7",
     "httpx>=0.28.1,<1.0",
     "httpx-sse>=0.4.3",
+    "keyring>=25.7,<26.0",
     "pydantic>=2.0.0",
+    "qrcode>=8.2,<9.0",
     "tenacity>=9.0.0",
 ]
 

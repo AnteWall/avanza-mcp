@@ -23,6 +23,7 @@ from ..models.etf import (
 )
 from ..models.future_forward import (
     FutureForwardDetails,
+    FutureForwardFilterOptions,
     FutureForwardInfo,
     FutureForwardMatrixRequest,
     FutureForwardMatrixResponse,
@@ -300,11 +301,11 @@ class MarketDataService:
         raw_data = await self._client.get(endpoint)
         return FutureForwardDetails.model_validate(raw_data)
 
-    async def get_future_forward_filter_options(self) -> dict[str, Any]:
+    async def get_future_forward_filter_options(self) -> FutureForwardFilterOptions:
         """Get futures/forwards filter options, including underlying instruments and dates."""
         endpoint = PublicEndpoint.FUTURE_FORWARD_FILTER_OPTIONS.value
         raw_data = await self._client.get(endpoint)
-        return TypeAdapter(dict[str, Any]).validate_python(raw_data)
+        return FutureForwardFilterOptions.model_validate(raw_data)
 
     # === Additional Features ===
 

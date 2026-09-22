@@ -7,6 +7,7 @@ import asyncio
 from datetime import datetime, timedelta, timezone
 from email.utils import format_datetime
 from functools import partial
+from http.cookiejar import Cookie
 
 import pytest
 import httpx
@@ -14,6 +15,7 @@ import respx
 from tenacity import retry
 from unittest.mock import AsyncMock
 from avanza_mcp.client.endpoints import PublicEndpoint
+from avanza_mcp.client.bankid import SessionMaterial
 from avanza_mcp.client.exceptions import (
     AvanzaAuthError,
     AvanzaNetworkError,
@@ -142,6 +144,81 @@ class TestAvanzaClientRequests:
         else:
             assert json.loads(request.content) == {"foo": "bar"}
             assert not request.url.params
+
+    @respx.mock
+    async def test_current_session_is_reused_by_existing_public_requests(self, method):
+        active = None
+        cookie = Cookie(
+            version=0,
+            name="session",
+            value="sentinel-cookie",
+            port=None,
+            port_specified=False,
+            domain="www.avanza.se",
+            domain_specified=True,
+            domain_initial_dot=False,
+            path="/",
+            path_specified=True,
+            secure=True,
+            expires=None,
+            discard=True,
+            comment=None,
+            comment_url=None,
+            rest={"HttpOnly": None},
+            rfc2109=False,
+        )
+        route = respx.route(
+            method=method.upper(), url="https://www.avanza.se/test"
+        ).mock(return_value=httpx.Response(200, json={"ok": True}))
+        client = AvanzaClient(session_provider=lambda: active, max_retries=1)
+
+        async with client:
+            await getattr(client, method)("/test")
+            assert "x-securitytoken" not in route.calls.last.request.headers
+            assert "cookie" not in route.calls.last.request.headers
+
+            active = SessionMaterial((cookie,), "sentinel-token")
+            await getattr(client, method)("/test")
+            assert (
+                route.calls.last.request.headers["x-securitytoken"] == "sentinel-token"
+            )
+            assert "sentinel-cookie" in route.calls.last.request.headers["cookie"]
+
+            active = None
+            await getattr(client, method)("/test")
+            assert "x-securitytoken" not in route.calls.last.request.headers
+            assert "cookie" not in route.calls.last.request.headers
+
+    @respx.mock
+    async def test_expired_session_falls_back_to_anonymous_request(self, method):
+        active = SessionMaterial((), "sentinel-token")
+        invalidated = 0
+
+        async def invalidate():
+            nonlocal active, invalidated
+            active = None
+            invalidated += 1
+
+        def response(request):
+            if "x-securitytoken" in request.headers:
+                return httpx.Response(401, json={"error": "expired"})
+            return httpx.Response(200, json={"ok": True})
+
+        route = respx.route(
+            method=method.upper(), url="https://www.avanza.se/test"
+        ).mock(side_effect=response)
+        client = AvanzaClient(
+            session_provider=lambda: active,
+            session_invalidated=invalidate,
+            max_retries=1,
+        )
+
+        async with client:
+            assert await getattr(client, method)("/test") == {"ok": True}
+
+        assert route.call_count == 2
+        assert invalidated == 1
+        assert "x-securitytoken" not in route.calls.last.request.headers
 
     @respx.mock
     async def test_429_raises_rate_limit(self, mock_client, method):

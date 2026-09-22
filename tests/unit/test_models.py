@@ -49,13 +49,14 @@ class TestStockModels:
         assert quote.last == 100.75
         assert quote.isRealTime is True
 
-        assert quote.model_extra == {
-            "unknownField": "should not fail",
-            "anotherExtra": 123,
-            "unknownField1": "test",
-            "unknownField2": 123,
-            "nestedUnknown": {"a": 1},
-        }
+        assert quote.model_extra is None
+        assert not {
+            "unknownField",
+            "anotherExtra",
+            "unknownField1",
+            "unknownField2",
+            "nestedUnknown",
+        } & quote.model_dump().keys()
 
     def test_quote_with_missing_optional_fields(self):
         """Test Quote model with missing optional fields."""

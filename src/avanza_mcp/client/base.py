@@ -1,12 +1,15 @@
 """Base HTTP client for Avanza API."""
 
 import asyncio
+import copy
 import logging
 import math
 import uuid
+from collections.abc import Awaitable, Callable
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
-from typing import Any
+from http.cookiejar import Cookie
+from typing import Any, Protocol
 
 import httpx
 from tenacity import (
@@ -30,6 +33,11 @@ from .exceptions import (
 logger = logging.getLogger(__name__)
 
 
+class AuthenticatedSession(Protocol):
+    _cookies: tuple[Cookie, ...]
+    _security_token: str | None
+
+
 class AvanzaClient:
     """Async HTTP client for Avanza public API."""
 
@@ -50,6 +58,8 @@ class AvanzaClient:
         max_keepalive_connections: int = DEFAULT_MAX_KEEPALIVE,
         max_retries: int = DEFAULT_MAX_RETRIES,
         request_timeout: float = DEFAULT_TIMEOUT,
+        session_provider: Callable[[], AuthenticatedSession | None] | None = None,
+        session_invalidated: Callable[[], Awaitable[None]] | None = None,
     ) -> None:
         """Initialize Avanza client.
 
@@ -71,7 +81,13 @@ class AvanzaClient:
         if not math.isfinite(request_timeout) or request_timeout <= 0:
             raise ValueError("request_timeout must be positive and finite")
         self._request_timeout = request_timeout
+        self._session_provider = session_provider
+        self._session_invalidated = session_invalidated
         self._client: httpx.AsyncClient | None = None
+        self._authenticated_client: httpx.AsyncClient | None = None
+        self._authenticated_session: AuthenticatedSession | None = None
+        self._retired_clients: list[httpx.AsyncClient] = []
+        self._client_lock = asyncio.Lock()
 
     async def __aenter__(self) -> "AvanzaClient":
         """Initialize httpx client with connection pooling.
@@ -119,6 +135,61 @@ class AvanzaClient:
         """
         if self._client:
             await self._client.aclose()
+        if self._authenticated_client:
+            await self._authenticated_client.aclose()
+        for client in self._retired_clients:
+            await client.aclose()
+
+    async def _request_client(
+        self,
+    ) -> tuple[httpx.AsyncClient, bool]:
+        client = self._client
+        if client is None:
+            raise RuntimeError("Client not initialized. Use async context manager.")
+
+        session = self._session_provider() if self._session_provider else None
+        if session is None or self._base_url.rstrip("/") != self.DEFAULT_BASE_URL:
+            return client, False
+
+        async with self._client_lock:
+            if session is not self._authenticated_session:
+                if self._authenticated_client is not None:
+                    self._retired_clients.append(self._authenticated_client)
+                cookies = httpx.Cookies()
+                for cookie in session._cookies:
+                    cookies.jar.set_cookie(copy.copy(cookie))
+                headers = {
+                    "User-Agent": f"avanza-mcp/{__version__}",
+                    "Accept": "application/json",
+                }
+                if session._security_token is not None:
+                    headers["X-SecurityToken"] = session._security_token
+                self._authenticated_client = httpx.AsyncClient(
+                    base_url=self._base_url,
+                    cookies=cookies,
+                    headers=headers,
+                    timeout=httpx.Timeout(self._timeout, connect=self._connect_timeout),
+                    limits=httpx.Limits(
+                        max_connections=self._max_connections,
+                        max_keepalive_connections=self._max_keepalive_connections,
+                    ),
+                    follow_redirects=False,
+                    trust_env=False,
+                )
+                self._authenticated_session = session
+            return self._authenticated_client, True
+
+    async def request_authenticated(
+        self,
+        method: str,
+        path: str,
+        **kwargs: Any,
+    ) -> httpx.Response:
+        """Send one request through the current authenticated session."""
+        client, authenticated = await self._request_client()
+        if not authenticated:
+            raise AvanzaAuthError("No authenticated Avanza session is available")
+        return await client.request(method, path, **kwargs)
 
     def _handle_error(
         self,
@@ -252,10 +323,6 @@ class AvanzaClient:
         json: dict[str, Any] | None = None,
     ) -> dict[str, Any] | list[Any]:
         """Send a request through the shared retry and response pipeline."""
-        client = self._client
-        if not client:
-            raise RuntimeError("Client not initialized. Use async context manager.")
-
         request_id = str(uuid.uuid4())[:8]
         post_prefix = "POST " if method == "POST" else ""
 
@@ -284,7 +351,21 @@ class AvanzaClient:
         )
         async def _request_with_retry() -> dict[str, Any] | list[Any]:
             try:
+                client, authenticated = await self._request_client()
                 response = await client.request(method, path, params=params, json=json)
+                if (
+                    authenticated
+                    and response.status_code == 401
+                    and self._session_invalidated is not None
+                ):
+                    await self._session_invalidated()
+                    if self._client is None:
+                        raise RuntimeError(
+                            "Client not initialized. Use async context manager."
+                        )
+                    response = await self._client.request(
+                        method, path, params=params, json=json
+                    )
             except httpx.TimeoutException as e:
                 logger.warning(
                     "POST timeout [%s] %s: %s"

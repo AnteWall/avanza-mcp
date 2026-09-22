@@ -10,7 +10,7 @@ MODEL_CONFIG = ConfigDict(
     populate_by_name=True,
     str_strip_whitespace=True,
     validate_assignment=True,
-    extra="allow",  # Don't fail on extra fields from API
+    extra="ignore",
     serialize_by_alias=True,
 )
 

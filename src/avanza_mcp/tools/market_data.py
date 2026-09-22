@@ -195,7 +195,7 @@ async def get_company_financials(
 ) -> AnalysisPage:
     """Page one metric in an annual, quarterly, TTM or quarter-only financial section.
 
-    data preserves the selected upstream field name and full raw records.
+    data preserves the selected upstream field name and recognized record fields.
     Verified metric names include sales, netProfit, profitMargin, totalAssets,
     totalLiabilities and debtToEquityRatio. available_metrics lists names, not sibling
     series. Missing sections are omitted, not fabricated. No unit conversions are made.

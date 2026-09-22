@@ -2,6 +2,7 @@
 
 from pydantic import Field
 
+from .chart import ChartResolution
 from .common import MODEL_CONFIG as MODEL_CONFIG, AvanzaModel
 
 
@@ -33,6 +34,7 @@ class Listing(AvanzaModel):
     currency: str
     marketPlaceCode: str | None = None
     marketPlaceName: str
+    marketListName: str | None = None
     tickSizeListId: str | None = None
     marketTradesAvailable: bool | None = None
 
@@ -106,6 +108,27 @@ class HistoricalClosingPrices(AvanzaModel):
     threeYears: float | None = None
     fiveYears: float | None = None
     start: float | None = None
+    startDate: str | None = None
+
+
+class Documents(AvanzaModel):
+    """Public instrument document links."""
+
+    kid: str | None = None
+    prospectus: str | None = None
+
+
+class UnderlyingInfo(AvanzaModel):
+    """Public market information for an underlying instrument."""
+
+    orderbookId: str
+    name: str
+    instrumentType: str | None = None
+    instrumentSubType: str | None = None
+    quote: Quote | None = None
+    listing: Listing | None = None
+    previousClosingPrice: float | None = None
+    reference: bool | None = None
 
 
 class Company(AvanzaModel):
@@ -135,8 +158,6 @@ class StockInfo(AvanzaModel):
     quote: Quote
     type: str | None = None
     company: Company | None = None
-    relatedStocks: list | None = None
-    dividends: list | None = None
 
 
 # === Models for additional endpoints ===
@@ -156,7 +177,7 @@ class OHLCDataPoint(AvanzaModel):
 class ChartMetadata(AvanzaModel):
     """Metadata for price chart responses."""
 
-    resolution: str | dict | None = None  # Can be string or dict
+    resolution: str | ChartResolution | None = None
 
 
 class StockChart(AvanzaModel):
@@ -193,7 +214,9 @@ class Trade(AvanzaModel):
     """Individual trade information."""
 
     buyer: str
+    buyerName: str | None = None
     seller: str
+    sellerName: str | None = None
     dealTime: int
     price: float
     volume: int

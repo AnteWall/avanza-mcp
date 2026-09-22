@@ -135,7 +135,8 @@ async def test_shared_client_and_json_output(upstream):
         "name": "Test",
         "nav": "0.00",
         "navDate": "2026-09-08",
-        "development": {"oneWeek": "0"},
+        "development": {"oneWeek": "0", "personalNumber": "nested-secret"},
+        "securityToken": "root-secret",
     }
     async with Client(mcp) as client:
         tools = {tool.name: tool for tool in await client.list_tools()}
@@ -145,6 +146,7 @@ async def test_shared_client_and_json_output(upstream):
         assert "currency" not in content and "tradeable" not in content
         assert content["nav"] == "0.00" and content["navDate"] == "2026-09-08"
         assert content["development"] == {"oneWeek": "0"}
+        assert "secret" not in json.dumps(content)
         upstream.get.return_value = {"last": 0, "buy": None, "isRealTime": False}
         result = await client.call_tool("get_stock_quote", {"order_book_id": "123"})
         validate(result.structured_content, tools["get_stock_quote"].outputSchema)
@@ -181,11 +183,13 @@ async def test_chart_trade_and_analysis_pagination(upstream):
             "get_stock_chart", {"order_book_id": "123", "offset": 1, "limit": 1}
         )
         content = result.structured_content
-        assert content["data"]["ohlc"] == [points[1]]
+        assert content["data"]["ohlc"] == [
+            {key: value for key, value in points[1].items() if key != "rawExtra"}
+        ]
         assert (
             content["data"]["from"] == "2026-09-01" and "from_" not in content["data"]
         )
-        assert content["data"]["pagination"] == {"upstream": "retained"}
+        assert "pagination" not in content["data"]
         assert content["pagination"] == {
             "offset": 1,
             "limit": 1,
@@ -263,7 +267,7 @@ async def test_typed_history_pages(upstream, name, field, points):
         content = result.structured_content
         validate(content, schema)
         assert content["data"][field] == points[:1]
-        assert content["data"]["pagination"] == {"source": True}
+        assert "pagination" not in content["data"]
         assert content["pagination"] == {
             "offset": 0,
             "limit": 1,
@@ -322,7 +326,10 @@ async def test_marketmaker_metadata_cannot_collide(upstream):
     }
     upstream.get.return_value = {
         "ohlc": [point, point],
-        "marketMaker": [{"raw": 1}, {"raw": 2}],
+        "marketMaker": [
+            {"buy": 1, "sell": 2, "timestamp": 0, "securityToken": "secret"},
+            {"buy": 3, "sell": 4, "timestamp": 1, "securityToken": "secret"},
+        ],
         "metadata": {
             "resolution": {"chartResolution": "DAY", "availableResolutions": ["DAY"]}
         },
@@ -334,10 +341,12 @@ async def test_marketmaker_metadata_cannot_collide(upstream):
             "get_marketmaker_chart", {"order_book_id": "5269", "offset": 1, "limit": 1}
         )
         content = result.structured_content
-        assert content["data"]["pagination"] == {"upstream": True}
-        assert content["data"]["marketMakerPagination"] == {"upstream": True}
+        assert "pagination" not in content["data"]
+        assert "marketMakerPagination" not in content["data"]
         assert content["data"]["ohlc"] == [point]
-        assert content["data"]["marketMaker"] == [{"raw": 2}]
+        assert content["data"]["marketMaker"] == [
+            {"buy": 3.0, "sell": 4.0, "timestamp": 1}
+        ]
         assert (
             content["pagination"]["total"]
             == content["marketMakerPagination"]["total"]

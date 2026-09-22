@@ -113,7 +113,7 @@ async def test_fund_holdings_serialization(monkeypatch, portfolio_date):
     ctx = Mock(lifespan_context={"client": upstream})
     result = await funds.get_fund_holdings(ctx, "123")
     assert result.model_dump(mode="json", by_alias=True) == {
-        "countryChartData": [{"name": "Sweden", "y": 0.0, "extra": 1, "empty": None}],
+        "countryChartData": [{"name": "Sweden", "y": 0.0}],
         "sectorChartData": None,
         "holdingChartData": [{"name": None, "y": 10.0}],
         "portfolioDate": portfolio_date,

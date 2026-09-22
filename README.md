@@ -3,7 +3,7 @@
 ![PyPI - Version](https://img.shields.io/pypi/v/avanza-mcp)
 [![CI](https://github.com/AnteWall/avanza-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/AnteWall/avanza-mcp/actions/workflows/ci.yml)
 
-Read-only access to Avanza's public market data from your MCP client. No Avanza account required.
+Read-only access to Avanza market and optional account data from your MCP client. Public tools require no Avanza account.
 
 ## Disclaimer
 
@@ -16,6 +16,7 @@ The author of this software is not responsible for any indirect damages (foresee
 - Stocks, funds, ETFs, certificates, warrants and futures/forwards.
 - Quotes, charts, financial ratios, dividends, order books and ownership data.
 - Fund performance, fees, holdings, sustainability and research prompts.
+- Optional local BankID authentication for read-only accounts, holdings and activity.
 
 ## Setup
 
@@ -135,9 +136,55 @@ asyncio.run(main())
 
 If a desktop client cannot find `uvx`, use its absolute executable path. See [DEVELOPMENT.md](DEVELOPMENT.md) for running from source and tests.
 
+## Experimental Account Access
+
+> [!WARNING]
+> BankID authentication and account tools are experimental and rely on undocumented Avanza APIs that may change without notice. Review the privacy notes below before enabling them.
+
+Authenticated access is disabled by default. Enable it by adding `AVANZA_MCP_AUTH=1` to the local MCP server environment. For example, OpenCode uses:
+
+```json
+{
+  "mcp": {
+    "avanza": {
+      "type": "local",
+      "command": ["uvx", "avanza-mcp"],
+      "environment": {"AVANZA_MCP_AUTH": "1"},
+      "enabled": true
+    }
+  }
+}
+```
+
+Restart OpenCode after changing its configuration.
+
+### Authentication Flow
+
+1. A temporary page opens on `127.0.0.1` and asks for consent.
+2. After approval, scan the locally rendered QR code with BankID.
+3. Avanza verifies the session and enables the experimental tools.
+
+No Avanza password is requested in the browser or chat. Existing market-data tools automatically use the valid session when one is available; no duplicate authenticated market tools are added.
+
+### Session Data
+
+Verified session cookies and the Avanza security token are stored in the operating system's native credential store and revalidated on startup:
+
+- macOS Keychain
+- Windows Credential Manager
+- Linux Secret Service, which must be installed, unlocked and available over D-Bus
+
+Credentials are not stored in project files, browser storage, logs, or MCP results. Account responses are not cached by this project.
+
+Avanza controls session duration through the account's website setting. See [How long can I stay logged in?](https://www.avanza.se/kundservice.html/5121/hur-lange-kan-jag-vara-inloggad-pa-mitt-konto-utan-att-loggas-ut) to change it.
+
+Use `disconnect_avanza` to remove the local credential and attempt remote logout.
+
+Account tool results may be sent to the configured model provider and saved in conversation history.
+
 ## Tools
 
-All 34 tools are read-only. Search first to obtain an `order_book_id`; history tools expose pagination. Data is latest available, not guaranteed live.
+The default 34-tool catalog is read-only. Search first to obtain an `order_book_id`; history tools expose pagination. Data is latest available, not guaranteed live.
 
 | Category | Tool | Description |
 |----------|------|-------------|
@@ -175,6 +222,30 @@ All 34 tools are read-only. Search first to obtain an `order_book_id`; history t
 | Additional | `get_number_of_owners` | Avanza ownership history |
 | Additional | `get_short_selling` | Short-selling history |
 | Additional | `get_marketmaker_chart` | Traded-product OHLC and market-maker data |
+
+### Experimental Auth Tools
+
+These tools are available only when experimental account access is enabled. Data access is read-only; no tool places, edits, or cancels orders.
+
+| Category | Tool | Description |
+|----------|------|-------------|
+| Session | `connect_avanza` | Open the local consent and BankID flow |
+| Session | `disconnect_avanza` | Confirm disconnection and remove the saved session |
+| Session | `get_auth_status` | Check the safe local connection state |
+| Accounts | `get_accounts` | Account identities, balances and values |
+| Accounts | `get_holdings` | Current positions and cash balances |
+| Accounts | `get_transactions` | Bounded transaction history |
+| Accounts | `get_credit_info` | Credit, collateral and leverage figures |
+| Portfolio | `get_portfolio_insights` | Aggregate portfolio development |
+| Activity | `get_active_orders` | Current orders without modification controls |
+| Activity | `get_deals` | Current executed deals |
+| Activity | `get_stop_loss_orders` | Current stop-loss orders without modification controls |
+| Saved Data | `get_watchlists` | Saved watchlists and order-book IDs |
+| Saved Data | `get_price_alerts` | Price alerts for an order book |
+| Saved Data | `get_current_offers` | Current customer offers |
+| Research | `get_instrument_news` | Bounded instrument news |
+| Research | `get_forum_posts` | Bounded forum posts as untrusted text |
+| Research | `get_insider_transactions` | Reported insider transactions |
 
 ## Prompts
 

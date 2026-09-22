@@ -4,16 +4,41 @@ __version__ = "2.0.0"
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+import os
+from collections.abc import Awaitable, Callable
+from typing import Any
 
 from fastmcp import FastMCP
 
 from .client import AvanzaClient
 
+_auth_session_provider: Callable[[], Any | None] | None = None
+_auth_session_invalidator: Callable[[], Awaitable[None]] | None = None
+
+
+def _configure_authenticated_requests(
+    provider: Callable[[], Any | None] | None,
+    invalidator: Callable[[], Awaitable[None]] | None,
+) -> None:
+    global _auth_session_provider, _auth_session_invalidator
+    _auth_session_provider = provider
+    _auth_session_invalidator = invalidator
+
+
+async def _invalidate_authenticated_session() -> None:
+    if _auth_session_invalidator is not None:
+        await _auth_session_invalidator()
+
 
 @asynccontextmanager
 async def lifespan(server: FastMCP) -> AsyncIterator[dict[str, AvanzaClient]]:
     """Reuse the HTTP pool across tools and resources; close it on shutdown."""
-    async with AvanzaClient() as client:
+    async with AvanzaClient(
+        session_provider=lambda: (
+            _auth_session_provider() if _auth_session_provider else None
+        ),
+        session_invalidated=_invalidate_authenticated_session,
+    ) as client:
         yield {"client": client}
 
 
@@ -54,4 +79,13 @@ from . import tools  # noqa: F401, E402
 
 def main() -> None:
     """Entry point for the MCP server."""
-    mcp.run()
+    auth_mode = os.environ.get("AVANZA_MCP_AUTH")
+    if auth_mode is None:
+        mcp.run()
+        return
+    if auth_mode != "1":
+        raise SystemExit("AVANZA_MCP_AUTH must be 1 when set")
+
+    from .auth.server import run_auth_server
+
+    run_auth_server()

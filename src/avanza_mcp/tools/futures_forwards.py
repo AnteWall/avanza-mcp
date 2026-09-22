@@ -1,7 +1,7 @@
 """Futures and forwards selection and detail tools."""
 
 from datetime import date
-from typing import Any, Literal
+from typing import Literal
 
 from fastmcp import Context
 
@@ -10,6 +10,7 @@ from ..models.common import Limit, Offset, OrderBookId
 from ..models.filter import SortBy
 from ..models.future_forward import (
     FutureForwardDetails,
+    FutureForwardFilterOptions,
     FutureForwardInfo,
     FutureForwardMatrixFilter,
     FutureForwardMatrixRequest,
@@ -33,7 +34,7 @@ async def list_futures_forwards(
     """Select futures/forwards with server-side pagination and ISO YYYY-MM-DD end dates.
 
     Use get_future_forward_filter_options for current filter vocabulary. The
-    matrix response retains flexible upstream fields, not an invented flat schema.
+    Matrix results include recognized contract, option, filter, and pagination fields.
     """
     request = FutureForwardMatrixRequest(
         filter=FutureForwardMatrixFilter(
@@ -67,7 +68,7 @@ async def get_future_forward_info(
 async def get_future_forward_details(
     ctx: Context, order_book_id: OrderBookId
 ) -> FutureForwardDetails:
-    """Get extended contract details beyond info; detail fields are intentionally flexible."""
+    """Get recognized extended contract details beyond info."""
     with api_errors():
         return await MarketDataService(
             ctx.lifespan_context["client"]
@@ -75,10 +76,10 @@ async def get_future_forward_details(
 
 
 @mcp.tool(annotations=READ_ONLY)
-async def get_future_forward_filter_options(ctx: Context) -> dict[str, Any]:
+async def get_future_forward_filter_options(ctx: Context) -> FutureForwardFilterOptions:
     """Get current upstream filter options before selecting futures/forwards.
 
-    Option names, values and nested detail fields are intentionally flexible.
+    Option names and values retain their upstream vocabulary.
     """
     with api_errors():
         return await MarketDataService(

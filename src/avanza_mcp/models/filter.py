@@ -1,5 +1,7 @@
 """Shared filter models for list/filter endpoints."""
 
+from __future__ import annotations
+
 from pydantic import Field
 from typing import Literal
 
@@ -29,8 +31,24 @@ class UnderlyingInstrument(AvanzaModel):
     countryCode: str | None = None
 
 
+class PaginationResponse(AvanzaModel):
+    """Pagination values returned by filter endpoints."""
+
+    offset: int
+    limit: int
+
+
+class FilterOption(AvanzaModel):
+    """Named filter option, optionally containing child options."""
+
+    value: str
+    displayName: str
+    numberOfOrderbooks: int | str
+    children: list[FilterOption] | None = None
+
+
 class FilterResponse(AvanzaModel):
     """Base response for filter endpoints with pagination."""
 
-    pagination: dict | None = None
+    pagination: PaginationResponse | None = None
     totalNumberOfOrderbooks: int | None = None
