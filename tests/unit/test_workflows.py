@@ -101,7 +101,7 @@ async def test_mcp_guidance_registration():
     async with Client(mcp) as client:
         tools = await client.list_tools()
         tool_names = {tool.name for tool in tools}
-        assert len(tool_names) == 34
+        assert len(tool_names) == 35
         prompts = await client.list_prompts()
         assert {prompt.name for prompt in prompts} == {
             "analyze_stock",
