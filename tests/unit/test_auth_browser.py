@@ -155,6 +155,45 @@ async def test_restored_session_reconnects_without_another_bankid_flow():
         await auth.aclose()
 
 
+async def test_reconnect_after_confirmed_disconnect_reuses_live_listener():
+    session = SessionMaterial((), "synthetic-token")
+    store = FakeStore(session)
+    attempt = FakeAttempt()
+    opened: list[str] = []
+    auth = BrowserAuth(
+        client_factory=lambda: attempt,
+        browser_opener=lambda url: opened.append(url) is None,
+        store=store,
+    )
+
+    try:
+        assert (await auth.restore()).state == "connected"
+        assert (await auth.open_disconnect_browser()).state == "awaiting_disconnect"
+        target = urlsplit(opened[0])
+        origin = f"{target.scheme}://{target.netloc}"
+
+        async with httpx.AsyncClient(base_url=origin) as client:
+            page = await client.get(target.path)
+            csrf = json.loads(re.search(r"const csrf=(\"[^\"]+\")", page.text)[1])
+            headers = {"Origin": origin, "X-CSRF-Token": csrf}
+
+            disconnected = await client.post(
+                f"{target.path}/disconnect",
+                headers=headers,
+            )
+            assert disconnected.json()["state"] == "disconnected"
+
+            reconnected = await auth.open_browser()
+            assert reconnected.state == "awaiting_approval"
+
+            started = await client.post(f"{target.path}/start", headers=headers)
+            assert started.json()["state"] == "scanning"
+
+        assert attempt.started == 1
+    finally:
+        await auth.aclose()
+
+
 async def test_credential_store_failure_has_safe_actionable_message():
     auth = BrowserAuth(store=FailingStore(None))
 

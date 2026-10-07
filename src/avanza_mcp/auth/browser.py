@@ -209,6 +209,9 @@ class BrowserAuth:
                 self._error_code = None
             else:
                 url = f"{self._origin}/{self._path_token}"
+                if self._state in {"disconnected", "denied", "timed_out", "error"}:
+                    self._state = "awaiting_approval"
+                    self._error_code = None
 
         opened = await asyncio.to_thread(self._browser_opener, url)
         if not opened:
