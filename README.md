@@ -1,6 +1,11 @@
 # Avanza MCP Server
 
-> **Want to use Avanza with Agents?** Consider the [Avanza CLI](https://antewall.github.io/avanza-ts/docs/cli/) with [agent skills](https://antewall.github.io/avanza-ts/docs/cli/skills/) instead. It may be a better fit for agent workflows.
+> [!TIP]
+> <img src="https://raw.githubusercontent.com/AnteWall/avanza-desk/HEAD/src-tauri/icons/logo.svg" width="20" align="top" alt="" /> **New: [Avanza Desk](https://github.com/AnteWall/avanza-desk)** is a fast, keyboard-first trading terminal for your Avanza account, with built-in agent support. Free and open source. [Check it out →](https://github.com/AnteWall/avanza-desk)
+>
+> <a href="https://github.com/AnteWall/avanza-desk"><img src="https://raw.githubusercontent.com/AnteWall/avanza-desk/HEAD/docs/screenshots/workspace.png" width="480" alt="Avanza Desk workspace" /></a>
+
+> **Want to use Avanza with your own coding agents?** Consider the [Avanza CLI](https://antewall.github.io/avanza-ts/docs/cli/) with [agent skills](https://antewall.github.io/avanza-ts/docs/cli/skills/) instead. It may be a better fit for agent workflows.
 
 ![PyPI - Version](https://img.shields.io/pypi/v/avanza-mcp)
 [![CI](https://github.com/AnteWall/avanza-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/AnteWall/avanza-mcp/actions/workflows/ci.yml)
