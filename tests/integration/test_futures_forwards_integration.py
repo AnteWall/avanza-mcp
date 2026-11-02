@@ -7,6 +7,7 @@ Run with: pytest tests/integration/test_futures_forwards_integration.py -v -m in
 import pytest
 from avanza_mcp.models.filter import SortBy
 from avanza_mcp.models.future_forward import (
+    FutureForwardFilterOptions,
     FutureForwardMatrixFilter,
     FutureForwardMatrixRequest,
 )
@@ -58,5 +59,5 @@ class TestFutureForwardEndpoints:
         """Test getting filter options for futures/forwards."""
         result = await service.get_future_forward_filter_options()
 
-        assert result is not None
-        assert isinstance(result, dict)
+        assert isinstance(result, FutureForwardFilterOptions)
+        assert result.underlyingInstruments
