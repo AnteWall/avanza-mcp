@@ -25,33 +25,33 @@ async def test_registered_schemas_and_annotations():
         tools = {tool.name: tool for tool in await client.list_tools()}
     assert len(tools) == 34
     for tool in tools.values():
-        props = tool.inputSchema["properties"]
+        props = tool.input_schema["properties"]
         assert "instrument_id" not in props and "ctx" not in props
         if "order_book_id" in props:
             assert props["order_book_id"]["pattern"] == "^[0-9]+$"
-            assert "order_book_id" in tool.inputSchema["required"]
+            assert "order_book_id" in tool.input_schema["required"]
         if "limit" in props:
             assert props["limit"]["minimum"] == 1
             assert props["limit"]["maximum"] in (50, 100)
         if "offset" in props:
             assert props["offset"]["minimum"] == 0
-        assert tool.annotations.readOnlyHint is True
-        assert tool.annotations.destructiveHint is False
-        assert tool.annotations.idempotentHint is True
-        assert tool.annotations.openWorldHint is True
-        assert tool.outputSchema
-    fund = tools["get_fund_info"].outputSchema
+        assert tool.annotations.read_only_hint is True
+        assert tool.annotations.destructive_hint is False
+        assert tool.annotations.idempotent_hint is True
+        assert tool.annotations.open_world_hint is True
+        assert tool.output_schema
+    fund = tools["get_fund_info"].output_schema
     assert "navDate" in fund["properties"] and "nav_date" not in fund["properties"]
     assert {item.get("type") for item in fund["properties"]["nav"]["anyOf"]} == {
         "string",
         "null",
     }
-    assert tools["filter_etfs"].inputSchema["properties"]["sort_order"]["enum"] == [
+    assert tools["filter_etfs"].input_schema["properties"]["sort_order"]["enum"] == [
         "asc",
         "desc",
     ]
     assert (
-        tools["list_futures_forwards"].inputSchema["properties"]["end_dates"]["anyOf"][
+        tools["list_futures_forwards"].input_schema["properties"]["end_dates"]["anyOf"][
             0
         ]["items"]["format"]
         == "date"
@@ -142,14 +142,14 @@ async def test_shared_client_and_json_output(upstream):
         tools = {tool.name: tool for tool in await client.list_tools()}
         result = await client.call_tool("get_fund_info", {"order_book_id": "123"})
         content = result.structured_content
-        validate(content, tools["get_fund_info"].outputSchema)
+        validate(content, tools["get_fund_info"].output_schema)
         assert "currency" not in content and "tradeable" not in content
         assert content["nav"] == "0.00" and content["navDate"] == "2026-09-08"
         assert content["development"] == {"oneWeek": "0"}
         assert "secret" not in json.dumps(content)
         upstream.get.return_value = {"last": 0, "buy": None, "isRealTime": False}
         result = await client.call_tool("get_stock_quote", {"order_book_id": "123"})
-        validate(result.structured_content, tools["get_stock_quote"].outputSchema)
+        validate(result.structured_content, tools["get_stock_quote"].output_schema)
         assert result.structured_content["last"] == 0
         assert result.structured_content["buy"] is None
         assert result.structured_content["isRealTime"] is False
@@ -261,7 +261,7 @@ async def test_typed_history_pages(upstream, name, field, points):
     upstream.get.return_value = payload
     async with Client(mcp) as client:
         schema = next(
-            tool.outputSchema for tool in await client.list_tools() if tool.name == name
+            tool.output_schema for tool in await client.list_tools() if tool.name == name
         )
         result = await client.call_tool(name, {"order_book_id": "5269", "limit": 1})
         content = result.structured_content
@@ -292,12 +292,12 @@ async def test_selected_analysis_schema_and_missing_metric(upstream):
     }
     async with Client(mcp) as client:
         tools = {tool.name: tool for tool in await client.list_tools()}
-        assert "metric" in tools["get_stock_analysis"].inputSchema["required"]
+        assert "metric" in tools["get_stock_analysis"].input_schema["required"]
         result = await client.call_tool(
             "get_stock_analysis",
             {"order_book_id": "5269", "metric": "priceEarningsRatio"},
         )
-        validate(result.structured_content, tools["get_stock_analysis"].outputSchema)
+        validate(result.structured_content, tools["get_stock_analysis"].output_schema)
         assert (
             result.structured_content["data"]["stockKeyRatiosByYear"][
                 "priceEarningsRatio"

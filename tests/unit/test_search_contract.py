@@ -93,7 +93,7 @@ async def test_filter_before_limit_and_candidate_counts(
             {"query": "Volvo", "instrument_type": kind, "limit": 1},
         )
     data = result.structured_content
-    validate(data, tools["search_instruments"].outputSchema)
+    validate(data, tools["search_instruments"].output_schema)
     assert [hit["order_book_id"] for hit in data["hits"]] == ids
     assert data["totalNumberOfHits"] == total
     assert data["candidatesExamined"] == 10

@@ -5,7 +5,7 @@ import re
 
 import pytest
 from fastmcp import Client
-from mcp.shared.exceptions import McpError
+from mcp.shared.exceptions import MCPError
 
 from avanza_mcp import mcp
 from avanza_mcp.resources.usage import QUICK_START, USAGE_GUIDE
@@ -93,7 +93,7 @@ async def test_rendered_research_prompts(name, arguments, expected):
 )
 async def test_prompt_validation(name, arguments):
     async with Client(mcp) as client:
-        with pytest.raises(McpError):
+        with pytest.raises(MCPError):
             await client.get_prompt(name, arguments)
 
 
@@ -124,13 +124,13 @@ async def test_mcp_guidance_registration():
             "avanza://docs/quick-start",
         }
         for resource in resources:
-            assert resource.mimeType == "text/markdown"
+            assert resource.mime_type == "text/markdown"
         for uri, expected in (
             ("avanza://docs/usage", USAGE_GUIDE),
             ("avanza://docs/quick-start", QUICK_START),
         ):
             contents = await client.read_resource(uri)
-            assert contents[0].mimeType == "text/markdown"
+            assert contents[0].mime_type == "text/markdown"
             assert contents[0].text == expected
             referenced = set(
                 re.findall(r"`((?:get_|search_|filter_|list_)\w+)`", expected)
@@ -170,11 +170,11 @@ async def test_mcp_guidance_registration():
             assert phrase in USAGE_GUIDE
         templates = await client.list_resource_templates()
         assert len(templates) == 2
-        assert {template.uriTemplate for template in templates} == {
+        assert {template.uri_template for template in templates} == {
             "avanza://stock/{order_book_id}",
             "avanza://fund/{order_book_id}",
         }
-        assert all(template.mimeType == "text/markdown" for template in templates)
+        assert all(template.mime_type == "text/markdown" for template in templates)
 
 
 async def test_documented_history_defaults_and_metric_contracts():
@@ -192,15 +192,15 @@ async def test_documented_history_defaults_and_metric_contracts():
         "get_short_selling",
     ):
         tool = tools[name]
-        properties = tool.inputSchema["properties"]
+        properties = tool.input_schema["properties"]
         assert properties["offset"]["default"] == 0
         assert properties["offset"]["minimum"] == 0
         assert properties["limit"]["default"] == (100 if name.endswith("chart") else 20)
         assert properties["limit"]["minimum"] == 1
         assert properties["limit"]["maximum"] == 100
-        assert "order_book_id" in tool.inputSchema["required"]
+        assert "order_book_id" in tool.input_schema["required"]
         assert "instrument_id" not in properties
-        output = tool.outputSchema["properties"]
+        output = tool.output_schema["properties"]
         assert "pagination" in output
         assert ("trades" if name == "get_recent_trades" else "data") in output
     for name, section in (
@@ -209,8 +209,8 @@ async def test_documented_history_defaults_and_metric_contracts():
         ("get_dividends", None),
     ):
         tool = tools[name]
-        assert "metric" in tool.inputSchema["required"]
-        assert set(tool.outputSchema["properties"]) == {
+        assert "metric" in tool.input_schema["required"]
+        assert set(tool.output_schema["properties"]) == {
             "selection",
             "metric",
             "available_metrics",
@@ -218,12 +218,12 @@ async def test_documented_history_defaults_and_metric_contracts():
             "pagination",
         }
         if section is None:
-            assert "selection" not in tool.inputSchema["properties"]
+            assert "selection" not in tool.input_schema["properties"]
         else:
-            assert tool.inputSchema["properties"]["selection"]["default"] == section
+            assert tool.input_schema["properties"]["selection"]["default"] == section
     for name, period in (
         ("get_stock_chart", "one_year"),
         ("get_fund_chart", "three_years"),
         ("get_marketmaker_chart", "today"),
     ):
-        assert tools[name].inputSchema["properties"]["time_period"]["default"] == period
+        assert tools[name].input_schema["properties"]["time_period"]["default"] == period

@@ -17,13 +17,13 @@ async def test_stdio_discovery_and_prompt():
         args=["-c", "from avanza_mcp import main; main()"],
     )
     async with Client(transport) as client:
-        assert client.initialize_result.serverInfo.version == __version__
+        assert client.server_info.version == __version__
         assert len(await client.list_tools()) == 34
         assert len(await client.list_prompts()) == 3
         prompt = await client.get_prompt("compare_funds", {"fund_names": '["A", "B"]'})
         assert "order_book_id" in prompt.messages[0].content.text
         resource = await client.read_resource("avanza://docs/usage")
-        assert resource[0].mimeType == "text/markdown"
+        assert resource[0].mime_type == "text/markdown"
 
 
 async def test_http_tool_and_resource(monkeypatch):
@@ -37,5 +37,5 @@ async def test_http_tool_and_resource(monkeypatch):
             )
             assert result.structured_content == {"last": 0.0, "isRealTime": False}
             resource = await client.read_resource("avanza://docs/usage")
-            assert resource[0].mimeType == "text/markdown"
+            assert resource[0].mime_type == "text/markdown"
     get.assert_awaited_once_with("/_api/market-guide/stock/5269/quote")

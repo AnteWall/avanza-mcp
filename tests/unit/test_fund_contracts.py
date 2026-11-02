@@ -78,7 +78,7 @@ async def test_fund_guide_structured_contract(upstream):
         tools = {tool.name: tool for tool in await client.list_tools()}
         result = await client.call_tool("get_fund_info", {"order_book_id": "41567"})
     content = result.structured_content
-    schema = tools["get_fund_info"].outputSchema
+    schema = tools["get_fund_info"].output_schema
     validate(content, schema, format_checker=FormatChecker())
     for field in (
         "productFee",
@@ -157,7 +157,7 @@ async def test_sustainability_goal_structured_contract(upstream):
             "get_fund_sustainability", {"order_book_id": "41567"}
         )
     content = result.structured_content
-    schema = tools["get_fund_sustainability"].outputSchema
+    schema = tools["get_fund_sustainability"].output_schema
     validate(content, schema)
     assert content["sustainabilityDevelopmentGoals"] == [goal]
     assert set(
@@ -183,6 +183,6 @@ async def test_fund_period_source_date_and_unscaled_change(upstream):
         result = await client.call_tool(
             "get_fund_chart_periods", {"order_book_id": "41567"}
         )
-    validate(result.structured_content, tools["get_fund_chart_periods"].outputSchema)
+    validate(result.structured_content, tools["get_fund_chart_periods"].output_schema)
     assert result.structured_content["periods"] == periods
     upstream.get.assert_awaited_once_with("/_api/fund-guide/chart/timeperiods/41567")

@@ -337,7 +337,7 @@ class AvanzaClient:
                 )
             ),
             stop=stop_after_attempt(self._max_retries),
-            wait=wait_exponential_jitter(initial=2, max=10),
+            wait=wait_exponential_jitter(multiplier=2, max=10),
             reraise=True,
             before_sleep=lambda retry_state: logger.info(
                 f"Retrying {post_prefix}request [%s] %s, attempt %d after %s",
